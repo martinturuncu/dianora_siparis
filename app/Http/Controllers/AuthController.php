@@ -23,7 +23,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $storedHash = env('ADMIN_PASSWORD_HASH');
+        $storedHash = config('app.admin_password_hash');
 
         if (!$storedHash) {
             return back()->withErrors(['password' => 'Sistemde şifre tanımlı değil. Lütfen yönetici ile iletişime geçin.']);

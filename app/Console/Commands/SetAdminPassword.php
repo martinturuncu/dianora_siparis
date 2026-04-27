@@ -43,6 +43,7 @@ class SetAdminPassword extends Command
             
             file_put_contents($path, $env);
             $this->info('Admin password updated successfully.');
+            $this->warn('If you are on production, please run: php artisan config:clear');
         } else {
             $this->error('.env file not found.');
         }
