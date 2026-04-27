@@ -29,6 +29,7 @@ Route::middleware(['admin.auth'])->group(function () {
 
 
     // Ana yönlendirme
+    Route::get('/mobile', [App\Http\Controllers\MobileController::class, 'index'])->name('mobile');
     Route::redirect('/', '/siparisler');
 
 

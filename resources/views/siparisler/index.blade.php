@@ -98,7 +98,7 @@
                 </form>
 
                 {{-- FİLTRE GRUBU (Aramanın Altında) --}}
-                <div class="d-flex align-items-center justify-content-between rounded-5 shadow-sm px-3 py-1 border glass-effect" style="position: relative; z-index: 1050;">
+                <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-between rounded-5 shadow-sm px-2 px-lg-3 py-1 border glass-effect" style="position: relative; z-index: 1050; gap: 5px;">
                     
                     {{-- Platform --}}
                     <div class="dropdown">
@@ -128,7 +128,7 @@
                         </ul>
                     </div>
                     
-                    <div class="vr h-50 mx-2 text-muted opacity-25"></div>
+                    <div class="vr h-50 mx-2 text-muted opacity-25 d-none d-lg-block"></div>
 
                     {{-- Durum --}}
                     <div class="dropdown">
@@ -146,7 +146,7 @@
                         </ul>
                     </div>
 
-                    <div class="vr h-50 mx-2 text-muted opacity-25"></div>
+                    <div class="vr h-50 mx-2 text-muted opacity-25 d-none d-lg-block"></div>
 
                     {{-- Not Filtresi --}}
                     <div class="dropdown">
@@ -165,7 +165,7 @@
 
             {{-- ... existing code ... --}}
             {{-- AKSİYON BUTONLARI --}}
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center justify-content-center justify-content-lg-end gap-2 w-100 w-lg-auto">
                 <div class="btn-group shadow-sm rounded-pill">
                     <a href="{{ route('siparis.guncelleVeKar') }}" id="updateOrdersBtn" class="btn btn-white btn-sync-hover border border-end-0 text-secondary fw-medium d-flex align-items-center gap-2 text-nowrap" style="height: 40px; border-top-left-radius: 50rem; border-bottom-left-radius: 50rem; position: relative" onclick="handleSyncAndUpdate(event, this)">
                         <i class="fa-solid fa-sync text-success sync-icon"></i> <span>Güncelle</span>

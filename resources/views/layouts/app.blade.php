@@ -128,6 +128,17 @@
             box-shadow: 0 -5px 30px rgba(0,0,0,0.08);
         }
 
+        @media (max-width: 768px) {
+            main {
+                margin-top: -40px;
+                border-radius: 40px 40px 0 0;
+                padding-top: 10px;
+            }
+            .navbar {
+                padding-bottom: 4rem;
+            }
+        }
+
         body.dark-mode main {
             box-shadow: 0 -5px 30px rgba(0,0,0,0.3);
         }
@@ -412,6 +423,10 @@
 
             {{-- 3. SAĞ: Ayarlar, Dark Mode, Tarih --}}
             <div class="d-flex align-items-center gap-4">
+                <a href="{{ route('mobile') }}" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 0.65rem;">
+                    <i class="fa-solid fa-mobile-screen-button me-1"></i> Mobil
+                </a>
+
                 <a href="{{ url('/ayarlar') }}" class="text-secondary text-decoration-none small hover-white" title="Ayarlar">
                     <i class="fa-solid fa-sliders me-1"></i> Ayarlar
                 </a>
@@ -513,6 +528,13 @@
     <main>
         @yield('content')
     </main>
+    
+    {{-- Mobil Floating Button --}}
+    <div class="d-md-none position-fixed bottom-0 end-0 p-4" style="z-index: 1060;">
+        <a href="{{ route('mobile') }}" class="btn btn-warning rounded-circle shadow-lg d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+            <i class="fa-solid fa-mobile-screen-button fs-3"></i>
+        </a>
+    </div>
 
     @stack('modals')
 
