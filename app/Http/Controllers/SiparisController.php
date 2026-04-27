@@ -144,7 +144,7 @@ class SiparisController extends Controller
                 s.PazaryeriID,
                 p.Ad AS PazaryeriAd,
                 p.KomisyonOrani AS KomisyonOrani,
-                FORMAT(s.Tarih, 'dd.MM.yyyy HH:mm:ss', 'tr-TR') AS SiparisTarihi,
+                DATE_FORMAT(s.Tarih, '%d.%m.%Y %H:%i:%s') AS SiparisTarihi,
                 s.HediyeCekiTutari, 
                 s.odemeIndirimi, 
                 sn.NotSayisi,
@@ -170,15 +170,14 @@ class SiparisController extends Controller
             FROM Siparisler s
             INNER JOIN SiparisUrunleri u ON s.SiparisID = u.SiparisID
             
-            OUTER APPLY (
-                SELECT TOP 1 *
-                FROM Urunler matched_ur
-                WHERE 
-                    matched_ur.UrunKodu = u.StokKodu 
-                    OR matched_ur.UrunKodu = u.StokKodu + '-yeni'
-                    OR u.StokKodu = matched_ur.UrunKodu + '-yeni'
-                ORDER BY matched_ur.Id DESC
-            ) ur
+            LEFT JOIN (
+                SELECT u1.SiparisID, u1.StokKodu, ur1.Gram, ur1.KategoriId,
+                       ROW_NUMBER() OVER(PARTITION BY u1.SiparisID, u1.StokKodu ORDER BY ur1.Id DESC) as rn
+                FROM SiparisUrunleri u1
+                JOIN Urunler ur1 ON (ur1.UrunKodu = u1.StokKodu OR ur1.UrunKodu = CONCAT(u1.StokKodu, '-yeni') OR u1.StokKodu = CONCAT(ur1.UrunKodu, '-yeni'))
+                WHERE u1.SiparisID IN ($placeholders)
+            ) ur ON ur.SiparisID = s.SiparisID AND ur.StokKodu = u.StokKodu AND ur.rn = 1
+            
             LEFT JOIN Kategoriler k ON ur.KategoriID = k.Id
             
             LEFT JOIN SiparisKarlar sk ON sk.SiparisID = s.SiparisID AND sk.UrunKodu = 'TOPLAM'
@@ -190,7 +189,7 @@ class SiparisController extends Controller
                     SUM(CASE WHEN SiparisDurumu NOT IN (8, 9) THEN 1 ELSE 0 END) as SiparisSayisi,
                     SUM(CASE WHEN SiparisDurumu IN (8, 9) THEN 1 ELSE 0 END) as IptalSayisi
                 FROM Siparisler 
-                WHERE Telefon IS NOT NULL AND LEN(Telefon) > 5
+                WHERE Telefon IS NOT NULL AND LENGTH(Telefon) > 5
                 GROUP BY Telefon
             ) mc ON mc.Telefon = s.Telefon
 
@@ -204,9 +203,9 @@ class SiparisController extends Controller
             ) sn ON sn.SiparisID = s.SiparisID
             
             LEFT JOIN (
-                SELECT SiparisID, [Not] as SonNot
+                SELECT SiparisID, `Not` as SonNot
                 FROM (
-                    SELECT SiparisID, [Not], ROW_NUMBER() OVER(PARTITION BY SiparisID ORDER BY Tarih DESC) as rn
+                    SELECT SiparisID, `Not`, ROW_NUMBER() OVER(PARTITION BY SiparisID ORDER BY Tarih DESC) as rn
                     FROM SiparisNotlari
                 ) as notlar_sirali
                 WHERE rn = 1
@@ -728,15 +727,15 @@ class SiparisController extends Controller
 
         // E) Günlük Reklam Gideri (Historical)
         $gunlukReklamGideri = DB::connection('mysql')->select("
-            SELECT SUM(u.Miktar * IFNULL(a.reklam, 0)) as ToplamReklam
-            FROM SiparisUrunleri u
-            JOIN Siparisler s ON s.SiparisID = u.SiparisID
-            OUTER APPLY (
-                SELECT TOP 1 reklam
+            SELECT SUM(u.Miktar * IFNULL((
+                SELECT reklam
                 FROM ayar_gecmisi
                 WHERE tarih <= CAST(s.Tarih as DATE)
                 ORDER BY tarih DESC
-            ) a
+                LIMIT 1
+            ), 0)) as ToplamReklam
+            FROM SiparisUrunleri u
+            JOIN Siparisler s ON s.SiparisID = u.SiparisID
             WHERE CAST(s.Tarih as DATE) = ?
             AND s.SiparisDurumu NOT IN (8, 9)
             AND s.AdiSoyadi != 'Dianora Piercing'
@@ -821,15 +820,15 @@ class SiparisController extends Controller
 
              // E) Aralık Reklam Gideri (Historical)
             $aralikReklamQuery = DB::connection('mysql')->select("
-                SELECT SUM(u.Miktar * IFNULL(a.reklam, 0)) as ToplamReklam
-                FROM SiparisUrunleri u
-                JOIN Siparisler s ON s.SiparisID = u.SiparisID
-                OUTER APPLY (
-                    SELECT TOP 1 reklam
+                SELECT SUM(u.Miktar * IFNULL((
+                    SELECT reklam
                     FROM ayar_gecmisi
                     WHERE tarih <= CAST(s.Tarih as DATE)
                     ORDER BY tarih DESC
-                ) a
+                    LIMIT 1
+                ), 0)) as ToplamReklam
+                FROM SiparisUrunleri u
+                JOIN Siparisler s ON s.SiparisID = u.SiparisID
                 WHERE s.Tarih BETWEEN ? AND ?
                 AND s.SiparisDurumu NOT IN (8, 9)
                 AND s.AdiSoyadi != 'Dianora Piercing'
@@ -864,7 +863,7 @@ class SiparisController extends Controller
             $satislar = DB::connection('mysql')->table('SiparisUrunleri')
                 ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
                 ->selectRaw("
-                    FORMAT(Siparisler.Tarih, 'dd.MM.yyyy') as TarihOzel,
+                    DATE_FORMAT(Siparisler.Tarih, '%d.%m.%Y') as TarihOzel,
                     CAST(Siparisler.Tarih as DATE) as TarihRaw,
                     SUM(SiparisUrunleri.Miktar) as ToplamUrun
                 ")
@@ -872,7 +871,7 @@ class SiparisController extends Controller
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9]) // İptaller ve İadeler satış adedine girmez
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('SiparisUrunleri.StokKodu', 'NOT LIKE', '%hediye%')
-                ->groupByRaw("FORMAT(Siparisler.Tarih, 'dd.MM.yyyy'), CAST(Siparisler.Tarih as DATE)")
+                ->groupByRaw("DATE_FORMAT(Siparisler.Tarih, '%d.%m.%Y'), CAST(Siparisler.Tarih as DATE)")
                 ->get()
                 ->keyBy('TarihOzel');
 
@@ -880,14 +879,14 @@ class SiparisController extends Controller
             $karlar = DB::connection('mysql')->table('SiparisKarlar')
                 ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
                 ->selectRaw("
-                    FORMAT(Siparisler.Tarih, 'dd.MM.yyyy') as TarihOzel,
+                    DATE_FORMAT(Siparisler.Tarih, '%d.%m.%Y') as TarihOzel,
                     SUM(SiparisKarlar.GercekKar) as ToplamKar
                 ")
                 ->where('Siparisler.Tarih', '>=', now()->subDays(15)->startOfDay())
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('SiparisKarlar.UrunKodu', 'TOPLAM')
-                ->groupByRaw("FORMAT(Siparisler.Tarih, 'dd.MM.yyyy')")
+                ->groupByRaw("DATE_FORMAT(Siparisler.Tarih, '%d.%m.%Y')")
                 ->get()
                 ->keyBy('TarihOzel');
 
@@ -1167,7 +1166,7 @@ class SiparisController extends Controller
     public function notlariGetir($id)
     {
         $notlar = DB::connection('mysql')->table('SiparisNotlari')
-            ->select('ID', 'SiparisID', DB::raw('[Not]'), 'Tarih')->where('SiparisID', $id)
+            ->select('ID', 'SiparisID', DB::raw('`Not`'), 'Tarih')->where('SiparisID', $id)
             ->orderBy('Tarih', 'desc')
             ->get();
 

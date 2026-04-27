@@ -83,7 +83,7 @@ class SiparisSyncService
 
         // Fatura bilgilerini çek - SQL Server conversion hatalarını önlemek için string olarak zorla
         $invoiceInfos = \Illuminate\Support\Facades\DB::connection('mysql')->table('FaturaBilgisi')
-            ->whereIn(\Illuminate\Support\Facades\DB::raw('CAST(SiparisID AS NVARCHAR(255))'), $orderIds)
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('CAST(SiparisID AS CHAR)'), $orderIds)
             ->get();
 
         $payload = [
@@ -192,14 +192,10 @@ class SiparisSyncService
                              } else {
                                  // Insert with Identity Insert using COMBINED raw SQL to ensure same session
                                  $columns = array_keys($cleanItemData);
-                                 $columnList = implode(', ', array_map(function($c) { return "[$c]"; }, $columns));
+                                 $columnList = implode(', ', array_map(function($c) { return "`$c`"; }, $columns));
                                  $placeholders = implode(', ', array_fill(0, count($columns), '?'));
                                  
-                                 $sql = "
-                                    SET IDENTITY_INSERT [SiparisUrunleri] ON;
-                                    INSERT INTO [SiparisUrunleri] ($columnList) VALUES ($placeholders);
-                                    SET IDENTITY_INSERT [SiparisUrunleri] OFF;
-                                 ";
+                                 $sql = "INSERT INTO SiparisUrunleri ($columnList) VALUES ($placeholders)";
 
                                  try {
                                      \Illuminate\Support\Facades\DB::connection('mysql')->statement($sql, array_values($cleanItemData));
@@ -229,13 +225,13 @@ class SiparisSyncService
                             } else {
                                 // Insert with Identity Insert using COMBINED raw SQL
                                 $columns = array_keys($cleanInvoiceData);
-                                $columnList = implode(', ', array_map(function($c) { return "[$c]"; }, $columns));
+                                $columnList = implode(', ', array_map(function($c) { return "`$c`"; }, $columns));
                                 $placeholders = implode(', ', array_fill(0, count($columns), '?'));
                                 
                                 $sql = "
-                                    SET IDENTITY_INSERT [FaturaBilgisi] ON;
-                                    INSERT INTO [FaturaBilgisi] ($columnList) VALUES ($placeholders);
-                                    SET IDENTITY_INSERT [FaturaBilgisi] OFF;
+                                    
+                                    INSERT INTO FaturaBilgisi ($columnList) VALUES ($placeholders);
+                                    
                                 ";
 
                                 try {

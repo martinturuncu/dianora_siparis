@@ -91,13 +91,13 @@ class SyncController extends Controller
                             SiparisUrunleri::where('Id', $id)->update($updateItemData);
                         } else {
                             $columns = array_keys($cleanItemData);
-                            $columnList = implode(', ', array_map(function($c) { return "[$c]"; }, $columns));
+                            $columnList = implode(', ', array_map(function($c) { return "`$c`"; }, $columns));
                             $placeholders = implode(', ', array_fill(0, count($columns), '?'));
                             
                             $sql = "
-                                SET IDENTITY_INSERT [SiparisUrunleri] ON;
-                                INSERT INTO [SiparisUrunleri] ($columnList) VALUES ($placeholders);
-                                SET IDENTITY_INSERT [SiparisUrunleri] OFF;
+                                
+                                INSERT INTO SiparisUrunleri ($columnList) VALUES ($placeholders);
+                                
                             ";
                             $connection->statement($sql, array_values($cleanItemData));
                         }
@@ -130,13 +130,13 @@ class SyncController extends Controller
                              DB::connection('mysql')->table('FaturaBilgisi')->where('ID', $id)->update($updateInvoiceData);
                         } else {
                             $columns = array_keys($cleanInvoiceData);
-                            $columnList = implode(', ', array_map(function($c) { return "[$c]"; }, $columns));
+                            $columnList = implode(', ', array_map(function($c) { return "`$c`"; }, $columns));
                             $placeholders = implode(', ', array_fill(0, count($columns), '?'));
                             
                             $sql = "
-                                SET IDENTITY_INSERT [FaturaBilgisi] ON;
-                                INSERT INTO [FaturaBilgisi] ($columnList) VALUES ($placeholders);
-                                SET IDENTITY_INSERT [FaturaBilgisi] OFF;
+                                
+                                INSERT INTO FaturaBilgisi ($columnList) VALUES ($placeholders);
+                                
                             ";
                             $connection->statement($sql, array_values($cleanInvoiceData));
                         }
