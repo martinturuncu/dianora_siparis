@@ -46,7 +46,7 @@
                         <div class="x-small text-muted">#{{ $siparis->SiparisID }} • {{ \Carbon\Carbon::parse($siparis->Tarih)->format('H:i') }}</div>
                     </div>
                     <div class="text-end">
-                        <div class="fw-bold small text-primary">{{ number_format($siparis->Tutar + $siparis->KdvTutari, 2, ',', '.') }} ₺</div>
+                        <div class="fw-bold small text-primary">{{ number_format($siparis->ToplamTutar, 2, ',', '.') }} ₺</div>
                         @php
                             $status = match((int)$siparis->SiparisDurumu) {
                                 0 => ['label' => 'Hazır.', 'color' => 'warning'],

@@ -48,9 +48,13 @@ class MobileController extends Controller
             ->sum('SiparisKarlar.GercekKar');
 
         // 2. Son Siparişler (Basit Liste)
-        $sonSiparisler = DB::connection('mysql')->table('Siparisler')
-            ->where('AdiSoyadi', '!=', 'Dianora Piercing')
-            ->orderBy('Tarih', 'desc')
+        $sonSiparisler = DB::connection('mysql')->table('Siparisler as s')
+            ->leftJoin('SiparisUrunleri as su', 's.SiparisID', '=', 'su.SiparisID')
+            ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
+            ->select('s.*')
+            ->selectRaw('SUM( (IFNULL(su.Tutar, 0) + IFNULL(su.KdvTutari, 0)) * su.Miktar ) - IFNULL(s.odemeIndirimi, 0) - IFNULL(s.HediyeCekiTutari, 0) as ToplamTutar')
+            ->groupBy('s.SiparisID')
+            ->orderBy('s.Tarih', 'desc')
             ->limit(20)
             ->get();
 
