@@ -215,7 +215,7 @@ class SiparisController extends Controller
             ORDER BY s.Tarih DESC
             ";
 
-            $siparisler = collect(DB::connection('mysql')->select($sql, $pageIds));
+            $siparisler = collect(DB::connection('mysql')->select($sql, array_merge($pageIds, $pageIds)));
         }
 
         // Hediye Kodlarını Çek (Görünüm ve Kontrol İçin - EN GÜNCEL OLANLAR)
