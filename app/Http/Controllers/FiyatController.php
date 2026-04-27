@@ -13,7 +13,7 @@ class FiyatController extends Controller
     private function getGuncelAyar()
     {
         $today = now()->toDateString();
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $today)
             ->orderBy('tarih', 'desc')
             ->first();
@@ -634,3 +634,4 @@ class FiyatController extends Controller
         }
     }
 }
+

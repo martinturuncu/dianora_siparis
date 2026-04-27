@@ -19,7 +19,7 @@ class AyarController extends Controller
         $today = Carbon::today()->toDateString();
 
         // 1. Bugünün ayarını veya en son ayarı çek
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $today)
             ->orderBy('tarih', 'desc')
             ->first();
@@ -44,7 +44,7 @@ class AyarController extends Controller
         $ayar->komisyon_hipicon_display = ($ayar->komisyon_hipicon ?? 0.3) * 100;
 
         // 2. Pazaryerlerini Çek
-        $pazaryerleri = DB::table('Pazaryerleri')->orderBy('id', 'asc')->get();
+        $pazaryerleri = DB::connection('mysql')->table('Pazaryerleri')->orderBy('id', 'asc')->get();
 
         return view('ayarlar.index', compact('ayar', 'pazaryerleri'));
     }
@@ -65,17 +65,17 @@ class AyarController extends Controller
         $data['updated_at'] = now();
 
         // Belirtilen tarihin kaydını güncelle veya oluştur
-        DB::table('ayar_gecmisi')->updateOrInsert(
+        DB::connection('mysql')->table('ayar_gecmisi')->updateOrInsert(
             ['tarih' => $tarih],
             $data
         );
 
         // Pazaryerleri tablosunu da güncel (en son) değerlerle senkronize et (Eğer tarih bugünse)
         if ($tarih == Carbon::today()->toDateString()) {
-            if (isset($data['komisyon_site']))     DB::table('Pazaryerleri')->where('id', 1)->update(['KomisyonOrani' => $data['komisyon_site']]);
-            if (isset($data['komisyon_trendyol'])) DB::table('Pazaryerleri')->where('id', 2)->update(['KomisyonOrani' => $data['komisyon_trendyol']]);
-            if (isset($data['komisyon_etsy']))     DB::table('Pazaryerleri')->where('id', 3)->update(['KomisyonOrani' => $data['komisyon_etsy']]);
-            if (isset($data['komisyon_hipicon']))  DB::table('Pazaryerleri')->where('id', 4)->update(['KomisyonOrani' => $data['komisyon_hipicon']]);
+            if (isset($data['komisyon_site']))     DB::connection('mysql')->table('Pazaryerleri')->where('id', 1)->update(['KomisyonOrani' => $data['komisyon_site']]);
+            if (isset($data['komisyon_trendyol'])) DB::connection('mysql')->table('Pazaryerleri')->where('id', 2)->update(['KomisyonOrani' => $data['komisyon_trendyol']]);
+            if (isset($data['komisyon_etsy']))     DB::connection('mysql')->table('Pazaryerleri')->where('id', 3)->update(['KomisyonOrani' => $data['komisyon_etsy']]);
+            if (isset($data['komisyon_hipicon']))  DB::connection('mysql')->table('Pazaryerleri')->where('id', 4)->update(['KomisyonOrani' => $data['komisyon_hipicon']]);
         }
 
         return redirect()->route('ayarlar.index', ['tarih' => $tarih])->with('success', 'Ayarlar başarıyla güncellendi!');
@@ -86,7 +86,7 @@ class AyarController extends Controller
      */
     public function getAyarByDate($tarih)
     {
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $tarih)
             ->orderBy('tarih', 'desc')
             ->first();
@@ -103,7 +103,7 @@ class AyarController extends Controller
      */
     public function gecmis()
     {
-        $gecmisAyarlar = DB::table('ayar_gecmisi')
+        $gecmisAyarlar = DB::connection('mysql')->table('ayar_gecmisi')
             ->orderBy('tarih', 'desc')
             ->get();
 
@@ -120,7 +120,7 @@ class AyarController extends Controller
             return;
         }
 
-        $eskiAyar = DB::table('Ayarlar')->first();
+        $eskiAyar = DB::connection('mysql')->table('Ayarlar')->first();
 
         if ($eskiAyar) {
             $yeniAyarVerisi = (array) $eskiAyar;
@@ -136,7 +136,7 @@ class AyarController extends Controller
 
 
             // Yeni tarihsel tabloya ekle (eğer o tarih boşsa)
-            DB::table('ayar_gecmisi')->updateOrInsert(
+            DB::connection('mysql')->table('ayar_gecmisi')->updateOrInsert(
                 ['tarih' => $yeniAyarVerisi['tarih']],
                 $yeniAyarVerisi
             );
@@ -146,3 +146,4 @@ class AyarController extends Controller
         Schema::dropIfExists('Ayarlar');
     }
 }
+

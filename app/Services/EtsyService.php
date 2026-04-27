@@ -200,7 +200,7 @@ class EtsyService
     {
         $dateStr = $date->toDateString();
         
-        $rate = DB::table('ayar_gecmisi')
+        $rate = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $dateStr)
             ->orderBy('tarih', 'desc')
             ->value('dolar_kuru');
@@ -402,4 +402,5 @@ class EtsyService
         return "Sipariş bulunamadı.";
     }
 }
+
 

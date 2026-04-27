@@ -220,7 +220,7 @@ class SiparisController extends Controller
         }
 
         // Hediye Kodlarını Çek (Görünüm ve Kontrol İçin - EN GÜNCEL OLANLAR)
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->orderBy('tarih', 'desc')
             ->first();
 
@@ -265,13 +265,13 @@ class SiparisController extends Controller
 
         // Tarihsel Ayarı Çek (Hediye kodları ve maliyetler için)
         $siparisTarihi = \Carbon\Carbon::parse($siparis->Tarih)->toDateString();
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $siparisTarihi)
             ->orderBy('tarih', 'desc')
             ->first();
 
         // Hediye kodlarını ayarla (HER ZAMAN GÜNCEL OLANLARI KULLAN)
-        $sonAyar = DB::table('ayar_gecmisi')
+        $sonAyar = DB::connection('mysql')->table('ayar_gecmisi')
             ->orderBy('tarih', 'desc')
             ->first();
             
@@ -1120,10 +1120,10 @@ class SiparisController extends Controller
         // Dolar seçildiyse Kur ile çarpıp TL'ye çevir
         if ($request->para_birimi == 'USD') {
             // Siparişin kendi tarihindeki kuru bul
-            $siparis = DB::table('Siparisler')->where('SiparisID', $request->siparis_id)->first();
+            $siparis = DB::connection('mysql')->table('Siparisler')->where('SiparisID', $request->siparis_id)->first();
             $siparisTarihi = \Carbon\Carbon::parse($siparis->Tarih)->toDateString();
             
-            $ayar = DB::table('ayar_gecmisi')
+            $ayar = DB::connection('mysql')->table('ayar_gecmisi')
                 ->where('tarih', '<=', $siparisTarihi)
                 ->orderBy('tarih', 'desc')
                 ->first();
@@ -1358,3 +1358,4 @@ class SiparisController extends Controller
         ]);
     }
 }
+

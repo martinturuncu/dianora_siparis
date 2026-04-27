@@ -23,7 +23,7 @@ class KarHesapService
         // =================================================================
         $siparisTarihi = \Carbon\Carbon::parse($urun->Tarih)->toDateString();
         
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $siparisTarihi)
             ->orderBy('tarih', 'desc')
             ->first();
@@ -377,7 +377,7 @@ class KarHesapService
 
         // 3. Geçmiş Ayarı Bul (Sipariş Tarihine Göre)
         $siparisTarihi = \Carbon\Carbon::parse($siparis->Tarih)->toDateString();
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
             ->where('tarih', '<=', $siparisTarihi)
             ->orderBy('tarih', 'desc')
             ->first();
@@ -837,7 +837,7 @@ class KarHesapService
         
         if ($this->cachedHediyeKodlari === null) {
             // En güncel ayarı çek (Tarihten bağımsız olarak en son kaydedilen)
-            $sonAyar = DB::table('ayar_gecmisi')
+            $sonAyar = DB::connection('mysql')->table('ayar_gecmisi')
                 ->orderBy('tarih', 'desc')
                 ->first();
                 
@@ -854,3 +854,4 @@ class KarHesapService
         return false;
     }
 }
+

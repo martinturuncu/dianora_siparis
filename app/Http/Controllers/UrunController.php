@@ -204,7 +204,7 @@ class UrunController extends Controller
 
         // Tarihsel Ayarı Çek (View'da göstermek için)
         $siparisTarihi = \Carbon\Carbon::parse($urun->Tarih)->toDateString();
-        $ayar = DB::table('ayar_gecmisi')
+        $ayar = DB::connection('mysql')->table('ayar_gecmisi')
                     ->where('tarih', '<=', $siparisTarihi)
                     ->orderBy('tarih', 'desc')
                     ->first();
@@ -402,3 +402,4 @@ class UrunController extends Controller
         }
     }
 }
+

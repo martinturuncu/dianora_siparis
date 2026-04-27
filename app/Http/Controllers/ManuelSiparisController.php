@@ -142,7 +142,7 @@ class ManuelSiparisController extends Controller
         if ($validated['PazaryeriID'] == 3) { // 3 = Etsy
             // Siparişin oluşturulduğu tarihe en yakın ayarı bul
             $siparisTarihi = \Carbon\Carbon::parse($tarih)->toDateString();
-            $ayar = DB::table('ayar_gecmisi')
+            $ayar = DB::connection('mysql')->table('ayar_gecmisi')
                 ->where('tarih', '<=', $siparisTarihi)
                 ->orderBy('tarih', 'desc')
                 ->first();
@@ -194,4 +194,5 @@ class ManuelSiparisController extends Controller
         }
     }
 }
+
 

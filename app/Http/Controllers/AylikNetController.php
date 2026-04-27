@@ -16,7 +16,7 @@ class AylikNetController extends Controller
         // Table: Siparisler, Col: SiparisID, Tarih, SiparisDurumu (8=İptal)
         // 1. Siparişleri ve Kârları Çek (Tek Sorgu)
         // Ekim 2025 ve sonrası, İptal olmayanlar
-        $siparisler = DB::table('Siparisler as s')
+        $siparisler = DB::connection('mysql')->table('Siparisler as s')
             ->leftJoin('SiparisKarlar as k', function($join) {
                 $join->on('s.SiparisID', '=', 'k.SiparisID')
                      ->where('k.UrunKodu', '=', 'TOPLAM');
@@ -37,7 +37,7 @@ class AylikNetController extends Controller
         $urunler = collect();
         if (!empty($siparisIds)) {
             foreach (array_chunk($siparisIds, 2000) as $chunk) {
-                $chunkResult = DB::table('SiparisUrunleri')
+                $chunkResult = DB::connection('mysql')->table('SiparisUrunleri')
                     ->whereIn('SiparisID', $chunk)
                     ->get();
                 $urunler = $urunler->merge($chunkResult);
@@ -49,10 +49,10 @@ class AylikNetController extends Controller
 
         // 4. Ayar Geçmişini Çek (Reklam Geliri Hesabı İçin)
         // Tüm ayarları çekip bellekte filtrelemek, her sipariş için DB'ye gitmekten iyidir.
-        $ayarlar = DB::table('ayar_gecmisi')->orderBy('tarih', 'desc')->get();
+        $ayarlar = DB::connection('mysql')->table('ayar_gecmisi')->orderBy('tarih', 'desc')->get();
 
         // Güncel Hediye Kodlarını Çek (Global)
-        $sonAyar = DB::table('ayar_gecmisi')
+        $sonAyar = DB::connection('mysql')->table('ayar_gecmisi')
             ->orderBy('tarih', 'desc')
             ->first();
         $globalHediyeKodlari = [];
@@ -144,7 +144,7 @@ class AylikNetController extends Controller
         }
 
         // 6. Giderleri Eşle ve Olmayan Ayları Ekle
-        $giderler = DB::table('aylik_giderler')->get();
+        $giderler = DB::connection('mysql')->table('aylik_giderler')->get();
         foreach ($giderler as $gid) {
             $k = sprintf('%d-%02d', $gid->yil, $gid->ay);
             
@@ -223,20 +223,20 @@ class AylikNetController extends Controller
         
         $col = ($tip == 'google') ? 'reklam_google' : 'reklam_meta';
 
-        $mevcut = DB::table('aylik_giderler')
+        $mevcut = DB::connection('mysql')->table('aylik_giderler')
             ->where('yil', $yil)
             ->where('ay', $ay)
             ->first();
 
         if ($mevcut) {
-            DB::table('aylik_giderler')
+            DB::connection('mysql')->table('aylik_giderler')
                 ->where('id', $mevcut->id)
                 ->update([
                     $col => $deger,
                     'updated_at' => now()
                 ]);
         } else {
-            DB::table('aylik_giderler')->insert([
+            DB::connection('mysql')->table('aylik_giderler')->insert([
                 'yil' => $yil,
                 'ay' => $ay,
                 'reklam_google' => ($tip == 'google' ? $deger : 0),
@@ -249,3 +249,4 @@ class AylikNetController extends Controller
         return response()->json(['status' => true]);
     }
 }
+

@@ -125,9 +125,9 @@ class SyncController extends Controller
                         $id = $cleanInvoiceData['ID'];
                         $updateInvoiceData = \Illuminate\Support\Arr::except($cleanInvoiceData, ['ID']);
 
-                        $exists = DB::table('FaturaBilgisi')->where('ID', $id)->exists();
+                        $exists = DB::connection('mysql')->table('FaturaBilgisi')->where('ID', $id)->exists();
                         if ($exists) {
-                             DB::table('FaturaBilgisi')->where('ID', $id)->update($updateInvoiceData);
+                             DB::connection('mysql')->table('FaturaBilgisi')->where('ID', $id)->update($updateInvoiceData);
                         } else {
                             $columns = array_keys($cleanInvoiceData);
                             $columnList = implode(', ', array_map(function($c) { return "[$c]"; }, $columns));
@@ -147,7 +147,7 @@ class SyncController extends Controller
                 foreach ($invoicesData as $invoiceData) {
                     $cleanInvoiceData = \Illuminate\Support\Arr::only($invoiceData, $this->validFaturaColumns);
                     if (isset($cleanInvoiceData['ID'])) {
-                        DB::table('FaturaBilgisi')->updateOrInsert(['ID' => $cleanInvoiceData['ID']], $cleanInvoiceData);
+                        DB::connection('mysql')->table('FaturaBilgisi')->updateOrInsert(['ID' => $cleanInvoiceData['ID']], $cleanInvoiceData);
                         $invoicesUpserted++;
                     }
                 }
@@ -213,5 +213,6 @@ class SyncController extends Controller
         ]);
     }
 }
+
 
 
