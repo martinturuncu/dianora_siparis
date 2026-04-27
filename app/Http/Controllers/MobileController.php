@@ -10,11 +10,22 @@ class MobileController extends Controller
 {
     public function index(Request $request)
     {
-        $tarih = now()->toDateString();
+        $period = $request->input('period', 'today');
+        $now = now();
+        $start = now()->startOfDay();
+        $end = now()->endOfDay();
 
-        // 1. Günlük İstatistikler
-        $gunlukOzet = DB::connection('mysql')->table('Siparisler')
-            ->whereDate('Tarih', $tarih)
+        if ($period === 'week') {
+            $start = now()->startOfWeek();
+        } elseif ($period === 'month') {
+            $start = now()->startOfMonth();
+        } elseif ($period === 'last30') {
+            $start = now()->subDays(30);
+        }
+
+        // 1. İstatistikler
+        $ozet = DB::connection('mysql')->table('Siparisler')
+            ->whereBetween('Tarih', [$start, $end])
             ->where('AdiSoyadi', '!=', 'Dianora Piercing')
             ->selectRaw("
                 COUNT(*) as toplam,
@@ -23,34 +34,34 @@ class MobileController extends Controller
             ")
             ->first();
 
-        $gunlukBrutCiro = DB::connection('mysql')->table('SiparisUrunleri')
+        $brutCiro = DB::connection('mysql')->table('SiparisUrunleri')
             ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
-            ->whereDate('Siparisler.Tarih', $tarih)
+            ->whereBetween('Siparisler.Tarih', [$start, $end])
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
             ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
             ->selectRaw('SUM( (IFNULL(SiparisUrunleri.Tutar, 0) + IFNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
             ->value('ciro') ?? 0;
 
-        $gunlukIndirimler = DB::connection('mysql')->table('Siparisler')
-            ->whereDate('Tarih', $tarih)
+        $indirimler = DB::connection('mysql')->table('Siparisler')
+            ->whereBetween('Tarih', [$start, $end])
             ->whereNotIn('SiparisDurumu', [8, 9])
             ->where('AdiSoyadi', '!=', 'Dianora Piercing')
             ->sum('odemeIndirimi');
 
-        $gunlukCiro = $gunlukBrutCiro - $gunlukIndirimler;
+        $toplamCiro = $brutCiro - $indirimler;
 
-        $gunlukKar = DB::connection('mysql')->table('SiparisKarlar')
+        $toplamKar = DB::connection('mysql')->table('SiparisKarlar')
             ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
-            ->whereDate('Siparisler.Tarih', $tarih)
+            ->whereBetween('Siparisler.Tarih', [$start, $end])
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9]) 
             ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
             ->where('SiparisKarlar.UrunKodu', 'TOPLAM')
             ->sum('SiparisKarlar.GercekKar');
 
-        // 1.B. Günlük Ürün Adedi
-        $gunlukUrunAdedi = DB::connection('mysql')->table('SiparisUrunleri')
+        // 1.B. Ürün Adedi
+        $toplamUrunAdedi = DB::connection('mysql')->table('SiparisUrunleri')
             ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
-            ->whereDate('Siparisler.Tarih', $tarih)
+            ->whereBetween('Siparisler.Tarih', [$start, $end])
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
             ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
             ->sum('SiparisUrunleri.Miktar');
@@ -73,11 +84,12 @@ class MobileController extends Controller
             ->get();
 
         return view('mobile', [
-            'gunlukToplam' => $gunlukOzet->aktif ?? 0,
-            'gunlukUrunAdedi' => $gunlukUrunAdedi ?? 0,
-            'gunlukCiro' => $gunlukCiro,
-            'gunlukKar' => $gunlukKar,
-            'siparisler' => $sonSiparisler
+            'gunlukToplam' => $ozet->aktif ?? 0,
+            'gunlukUrunAdedi' => $toplamUrunAdedi ?? 0,
+            'gunlukCiro' => $toplamCiro,
+            'gunlukKar' => $toplamKar,
+            'siparisler' => $sonSiparisler,
+            'period' => $period
         ]);
     }
 }
