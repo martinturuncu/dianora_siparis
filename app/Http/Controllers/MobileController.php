@@ -49,11 +49,9 @@ class MobileController extends Controller
 
         // 2. Son Siparişler (Basit Liste)
         $sonSiparisler = DB::connection('mysql')->table('Siparisler as s')
-            ->leftJoin('SiparisUrunleri as su', 's.SiparisID', '=', 'su.SiparisID')
+            ->leftJoin(DB::raw('(SELECT SiparisID, SUM((IFNULL(Tutar, 0) + IFNULL(KdvTutari, 0)) * Miktar) as UrunToplam FROM SiparisUrunleri GROUP BY SiparisID) as su'), 's.SiparisID', '=', 'su.SiparisID')
             ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
-            ->select('s.*')
-            ->selectRaw('SUM( (IFNULL(su.Tutar, 0) + IFNULL(su.KdvTutari, 0)) * su.Miktar ) - IFNULL(s.odemeIndirimi, 0) - IFNULL(s.HediyeCekiTutari, 0) as ToplamTutar')
-            ->groupBy('s.SiparisID')
+            ->select('s.*', DB::raw('IFNULL(su.UrunToplam, 0) - IFNULL(s.odemeIndirimi, 0) - IFNULL(s.HediyeCekiTutari, 0) as ToplamTutar'))
             ->orderBy('s.Tarih', 'desc')
             ->limit(20)
             ->get();
