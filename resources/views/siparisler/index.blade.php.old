@@ -1,0 +1,283 @@
+@extends('layouts.app')
+
+@section('title', 'Sipariş Yönetimi')
+
+@section('content')
+<div class="container-fluid py-4 bg-light" style="min-height: 100vh;">
+    
+    <div class="container-fluid px-lg-5">
+
+        {{-- ÜST BAŞLIK VE AKSİYONLAR --}}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h3 class="fw-bold text-dark mb-0">📦 Sipariş Yönetimi</h3>
+                <p class="text-muted small mb-0">Tüm pazaryeri siparişlerinizin anlık durumu ve finansal analizi.</p>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <a href="{{ route('siparisler.manuel.create') }}" class="btn btn-white border shadow-sm fw-semibold text-secondary transition-hover">
+                    <i class="fa-solid fa-plus text-success me-2"></i>Manuel Sipariş
+                </a>
+                <a href="{{ route('siparis.guncelleVeKar') }}" class="btn btn-dark shadow-sm fw-semibold px-4 transition-hover">
+                    <i class="fa-solid fa-rotate me-2 spin-hover"></i>Güncelle & Hesapla
+                </a>
+            </div>
+        </div>
+
+        {{-- BİLDİRİMLER --}}
+        @if(session('success') || session('basarili'))
+            <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 border-start border-success border-4 rounded-3 mb-4" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fa-solid fa-circle-check fs-5 me-3"></i>
+                    <div>
+                        <h6 class="fw-bold mb-0">İşlem Başarılı!</h6>
+                        <small>{{ session('success') ?? session('basarili') }}</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        @if(session('hata'))
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 border-start border-danger border-4 rounded-3 mb-4" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fa-solid fa-circle-exclamation fs-5 me-3"></i>
+                    <div>
+                        <h6 class="fw-bold mb-0">Bir Sorun Oluştu</h6>
+                        <small>{{ session('hata') }}</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        {{-- TABLO KARTI --}}
+        <div class="card shadow border-0 rounded-4 overflow-hidden">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr class="text-muted small text-uppercase ls-1">
+                                <th class="py-3 ps-4">Sipariş Bilgisi</th>
+                                <th class="py-3">Platform</th>
+                                <th class="py-3">Ürün Detayları</th>
+                                <th class="py-3 text-center">Durum</th>
+                                <th class="py-3 text-end">Satış Tutarı</th>
+                                <th class="py-3 text-end pe-4">Net Kâr</th>
+                                <th class="py-3 text-end pe-4" style="width: 100px;">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody class="border-top-0">
+                            @foreach($siparisler as $sip)
+                                {{-- Satır Rengi ve Border --}}
+                                @php
+                                    $rowClass = '';
+                                    $borderClass = 'border-start border-4 border-secondary'; // Varsayılan
+                                    
+                                    if($sip->SiparisDurumu == 8) { // İptal
+                                        $rowClass = 'bg-danger bg-opacity-10';
+                                        $borderClass = 'border-start border-4 border-danger';
+                                    } elseif($sip->SiparisDurumu == 6) { // Kargolandı
+                                        $rowClass = 'bg-success bg-opacity-10';
+                                        $borderClass = 'border-start border-4 border-success';
+                                    } elseif($sip->SiparisDurumu == 0) { // Hazırlanıyor
+                                        $rowClass = 'bg-warning bg-opacity-10';
+                                        $borderClass = 'border-start border-4 border-warning';
+                                    }
+                                @endphp
+
+                                <tr class="{{ $rowClass }}">
+                                    {{-- Müşteri & ID --}}
+                                    <td class="ps-0">
+                                        <div class="d-flex h-100">
+                                            <div class="{{ $borderClass }} me-3" style="height: 50px;"></div> <div class="d-flex flex-column justify-content-center">
+                                                <span class="fw-bold text-dark">{{ Str::limit($sip->MusteriAdi, 20) }}</span>
+                                                <div class="d-flex align-items-center gap-2 mt-1">
+                                                    <span class="badge bg-light text-secondary border font-monospace rounded-1">#{{ $sip->SiparisID }}</span>
+                                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                                        <i class="fa-regular fa-calendar me-1"></i>{{ \Carbon\Carbon::parse($sip->SiparisTarihi)->format('d.m H:i') }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    {{-- Platform Badge --}}
+                                    @php
+                                        $badges = [
+                                            1 => ['bg' => '#212529', 'icon' => 'fa-globe', 'text' => 'Site'],
+                                            2 => ['bg' => '#f27a1a', 'icon' => 'fa-check', 'text' => 'Trendyol'],
+                                            3 => ['bg' => '#F1641E', 'icon' => 'fa-etsy', 'text' => 'Etsy'],
+                                            4 => ['bg' => '#146eb4', 'icon' => 'fa-amazon', 'text' => 'Amazon'],
+                                            5 => ['bg' => '#FF6000', 'icon' => 'fa-bag-shopping', 'text' => 'Hepsiburada'],
+                                            6 => ['bg' => '#5f259f', 'icon' => 'fa-n', 'text' => 'N11'],
+                                        ];
+                                        $currBadge = $badges[$sip->PazaryeriID] ?? ['bg' => '#6c757d', 'icon' => 'fa-shop', 'text' => $sip->PazaryeriAd];
+                                    @endphp
+                                    <td>
+                                        <span class="badge rounded-pill shadow-sm py-2 px-3 fw-normal" 
+                                              style="background-color: {{ $currBadge['bg'] }}; color: #fff;">
+                                            <i class="fa-brands {{ $currBadge['icon'] }} me-1"></i> {{ $currBadge['text'] }}
+                                        </span>
+                                    </td>
+
+                                    {{-- Ürün (Birleştirilmiş) --}}
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span class="fw-bold text-dark mb-1" style="font-size: 0.95rem;">{{ Str::limit($sip->UrunAdi, 35) }}</span>
+                                            <div class="text-muted small d-flex align-items-center gap-2">
+                                                <span class="bg-white border px-1 rounded text-uppercase x-small fw-bold text-secondary">{{ $sip->StokKodu }}</span>
+                                                <span class="text-secondary">•</span>
+                                                <span>{{ $sip->UrunKategori }}</span>
+                                                @if(!empty($sip->UrunGram))
+                                                    <span class="text-secondary">•</span>
+                                                    <span class="fw-semibold text-dark">{{ number_format($sip->UrunGram, 2) }} gr</span>
+                                                @endif
+                                                @if(isset($sip->Miktar) && $sip->Miktar > 1)
+                                                    <span class="badge bg-dark ms-1">x{{ $sip->Miktar }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    {{-- Durum --}}
+                                    <td class="text-center">
+                                        @switch($sip->SiparisDurumu)
+                                            @case(0)
+                                                <span class="badge bg-warning text-warning bg-opacity-10 border border-warning px-3 py-2 rounded-pill">Hazırlanıyor</span>
+                                                @break
+                                            @case(6)
+                                                <span class="badge bg-success text-success bg-opacity-10 border border-success px-3 py-2 rounded-pill">Kargolandı</span>
+                                                @break
+                                            @case(8)
+                                                <span class="badge bg-danger text-danger bg-opacity-10 border border-danger px-3 py-2 rounded-pill">İptal</span>
+                                                @break
+                                            @default
+                                                <span class="badge bg-secondary text-secondary bg-opacity-10 border border-secondary px-3 py-2 rounded-pill">Bilinmiyor</span>
+                                        @endswitch
+                                    </td>
+
+                                    {{-- Satış --}}
+                                    <td class="text-end">
+                                        <span class="fw-bold fs-6 text-dark">{{ number_format($sip->Tutar + $sip->KdvTutari, 2, ',', '.') }} ₺</span>
+                                    </td>
+
+                                    {{-- Kâr --}}
+                                    <td class="text-end pe-4">
+                                        @if(empty($sip->UrunGram) || !is_numeric($sip->GercekKar))
+                                            <span class="text-muted fst-italic small">Hesaplanamadı</span>
+                                        @else
+                                            @if($sip->SiparisDurumu == 8)
+                                                <span class="text-decoration-line-through text-muted">{{ number_format($sip->GercekKar,2,',','.') }} ₺</span>
+                                            @else
+                                                <div class="d-flex flex-column align-items-end">
+                                                    <span class="fw-bold fs-6 {{ $sip->GercekKar > 0 ? 'text-success' : 'text-danger' }}">
+                                                        {{ $sip->GercekKar > 0 ? '+' : '' }}{{ number_format($sip->GercekKar,2,',','.') }} ₺
+                                                    </span>
+                                                    {{-- Kâr Marjı (Opsiyonel Eklenebilir) --}}
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </td>
+
+                                    {{-- İşlemler --}}
+                                    <td class="text-end pe-4">
+                                        <div class="dropdown">
+                                            <button class="btn btn-light btn-sm rounded-circle shadow-sm" type="button" data-bs-toggle="dropdown">
+                                                <i class="fa-solid fa-ellipsis-vertical text-muted"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                                                <li>
+                                                    <a class="dropdown-item py-2" href="/urun-detay/{{ $sip->SiparisID }}/{{ $sip->StokKodu }}">
+                                                        <i class="fa-solid fa-magnifying-glass text-primary me-2"></i> Detaylar
+                                                    </a>
+                                                </li>
+                                                @if($sip->PazaryeriID != 1)
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item py-2 text-danger" href="#" data-bs-toggle="modal" data-bs-target="#silModal{{ $sip->SiparisID }}">
+                                                            <i class="fa-solid fa-trash me-2"></i> Siparişi Sil
+                                                        </a>
+                                                    </li>
+                                                @endif
+                                            </ul>
+                                        </div>
+
+                                        {{-- Silme Modalı (Tablo içine gizli) --}}
+                                        @if($sip->PazaryeriID != 1)
+                                            <div class="modal fade" id="silModal{{ $sip->SiparisID }}" tabindex="-1">
+                                                <div class="modal-dialog modal-dialog-centered">
+                                                    <div class="modal-content rounded-4 border-0 shadow">
+                                                        <div class="modal-body p-4 text-center">
+                                                            <div class="mb-3">
+                                                                <div class="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                                    <i class="fa-solid fa-trash-can text-danger fs-3"></i>
+                                                                </div>
+                                                            </div>
+                                                            <h5 class="fw-bold">Emin misiniz?</h5>
+                                                            <p class="text-muted">Bu işlem <strong>#{{ $sip->SiparisID }}</strong> numaralı manuel siparişi kalıcı olarak silecektir.</p>
+                                                            
+                                                            <div class="d-flex justify-content-center gap-2 mt-4">
+                                                                <button type="button" class="btn btn-light px-4 fw-semibold" data-bs-dismiss="modal">Vazgeç</button>
+                                                                <form action="{{ route('manuel.sil', $sip->SiparisID) }}" method="POST">
+                                                                    @csrf @method('DELETE')
+                                                                    <button class="btn btn-danger px-4 fw-semibold">Evet, Sil</button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Boş Durum (DÜZELTİLEN KISIM) --}}
+                @if(count($siparisler) == 0)
+                    <div class="text-center py-5">
+                        <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                            <i class="fa-solid fa-box-open text-muted fs-1"></i>
+                        </div>
+                        <h5 class="fw-bold text-secondary">Henüz Sipariş Yok</h5>
+                        <p class="text-muted">Yeni siparişler geldiğinde burada listelenecek.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{{-- EK STİLLER --}}
+<style>
+    .ls-1 { letter-spacing: 0.5px; }
+    .x-small { font-size: 0.7rem; }
+    .transition-hover { transition: all 0.2s ease; }
+    .transition-hover:hover { transform: translateY(-2px); }
+    .spin-hover:hover { animation: spin 1s linear infinite; }
+    
+    @keyframes spin { 
+        100% { transform: rotate(360deg); } 
+    }
+    
+    /* Tablo Satır Hover Efekti */
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,0.02) !important;
+    }
+</style>
+
+<script>
+    // Alertleri otomatik kapat
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(el => {
+            el.classList.remove('show');
+            setTimeout(() => el.remove(), 300);
+        });
+    }, 4000);
+</script>
+
+@endsection
