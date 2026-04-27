@@ -47,17 +47,34 @@ class MobileController extends Controller
             ->where('SiparisKarlar.UrunKodu', 'TOPLAM')
             ->sum('SiparisKarlar.GercekKar');
 
+        // 1.B. Günlük Ürün Adedi
+        $gunlukUrunAdedi = DB::connection('mysql')->table('SiparisUrunleri')
+            ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
+            ->whereDate('Siparisler.Tarih', $tarih)
+            ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
+            ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
+            ->sum('SiparisUrunleri.Miktar');
+
         // 2. Son Siparişler (Basit Liste)
         $sonSiparisler = DB::connection('mysql')->table('Siparisler as s')
-            ->leftJoin(DB::raw('(SELECT SiparisID, SUM((IFNULL(Tutar, 0) + IFNULL(KdvTutari, 0)) * Miktar) as UrunToplam FROM SiparisUrunleri GROUP BY SiparisID) as su'), 's.SiparisID', '=', 'su.SiparisID')
+            ->leftJoin(DB::raw('(SELECT SiparisID, SUM((IFNULL(Tutar, 0) + IFNULL(KdvTutari, 0)) * Miktar) as UrunToplam, SUM(Miktar) as UrunAdedi FROM SiparisUrunleri GROUP BY SiparisID) as su'), 's.SiparisID', '=', 'su.SiparisID')
+            ->leftJoin('SiparisKarlar as sk', function($join) {
+                $join->on('s.SiparisID', '=', 'sk.SiparisID')
+                     ->where('sk.UrunKodu', '=', 'TOPLAM');
+            })
             ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
-            ->select('s.*', DB::raw('IFNULL(su.UrunToplam, 0) - IFNULL(s.odemeIndirimi, 0) - IFNULL(s.HediyeCekiTutari, 0) as ToplamTutar'))
+            ->select('s.*', 
+                DB::raw('IFNULL(su.UrunToplam, 0) - IFNULL(s.odemeIndirimi, 0) - IFNULL(s.HediyeCekiTutari, 0) as ToplamTutar'),
+                'su.UrunAdedi',
+                'sk.GercekKar as SiparisKar'
+            )
             ->orderBy('s.Tarih', 'desc')
             ->limit(20)
             ->get();
 
         return view('mobile', [
             'gunlukToplam' => $gunlukOzet->aktif ?? 0,
+            'gunlukUrunAdedi' => $gunlukUrunAdedi ?? 0,
             'gunlukCiro' => $gunlukCiro,
             'gunlukKar' => $gunlukKar,
             'siparisler' => $sonSiparisler
