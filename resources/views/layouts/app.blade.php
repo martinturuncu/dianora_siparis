@@ -417,6 +417,14 @@
                 </a>
 
                 <div class="vr bg-secondary mx-2 opacity-50"></div>
+                <form action="{{ route('logout') }}" method="POST" class="m-0 p-0 d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-link text-secondary text-decoration-none small hover-white p-0 m-0 border-0" title="Çıkış Yap">
+                        <i class="fa-solid fa-right-from-bracket me-1"></i> Çıkış
+                    </button>
+                </form>
+
+                <div class="vr bg-secondary mx-2 opacity-50"></div>
                 <div class="dark-mode-toggle" id="darkModeToggle" title="Toggle Dark Mode" style="transform: scale(0.8);">
                     <i class="fa-solid fa-sun"></i>
                     <div class="dark-mode-toggle-circle"></div>
