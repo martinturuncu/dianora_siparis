@@ -9,7 +9,7 @@ class KategoriController extends Controller
 {
     public function index()
     {
-        $kategoriler = DB::connection('sqlsrv')
+        $kategoriler = DB::connection('mysql')
             ->table('Kategoriler')
             ->orderBy('KategoriAdi', 'ASC')
             ->get();
@@ -41,7 +41,7 @@ class KategoriController extends Controller
             // sınırlar (0 - %500 arası)
             $karOrani = max(0, min($karOrani, 500));
 
-            DB::connection('sqlsrv')
+            DB::connection('mysql')
                 ->table('Kategoriler')
                 ->where('Id', $id)
                 ->update([
@@ -54,3 +54,4 @@ class KategoriController extends Controller
             ->with('basari', 'Kategori kâr oranları başarıyla güncellendi!');
     }
 }
+

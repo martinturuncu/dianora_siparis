@@ -79,7 +79,7 @@ class SyncController extends Controller
             $itemsUpserted = 0;
             $itemsData = $request->input('order_items');
 
-            if ($driver === 'sqlsrv') {
+            if ($driver === 'mysql') {
                 foreach ($itemsData as $itemData) {
                     $cleanItemData = \Illuminate\Support\Arr::only($itemData, $this->validUrunColumns);
                     if (isset($cleanItemData['Id'])) {
@@ -118,7 +118,7 @@ class SyncController extends Controller
             $invoicesUpserted = 0;
             $invoicesData = $request->input('invoice_infos', []);
 
-            if ($driver === 'sqlsrv') {
+            if ($driver === 'mysql') {
                 foreach ($invoicesData as $invoiceData) {
                     $cleanInvoiceData = \Illuminate\Support\Arr::only($invoiceData, $this->validFaturaColumns);
                     if (isset($cleanInvoiceData['ID'])) {
@@ -213,4 +213,5 @@ class SyncController extends Controller
         ]);
     }
 }
+
 

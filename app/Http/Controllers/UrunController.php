@@ -14,7 +14,7 @@ class UrunController extends Controller
      */
     public function index()
     {
-        $kategoriler = DB::connection('sqlsrv')->table('Kategoriler')->orderBy('KategoriAdi')->get();
+        $kategoriler = DB::connection('mysql')->table('Kategoriler')->orderBy('KategoriAdi')->get();
         return view('urunler.yonetim.index', compact('kategoriler'));
     }
 
@@ -23,7 +23,7 @@ class UrunController extends Controller
      */
     public function create()
     {
-        $kategoriler = DB::connection('sqlsrv')->table('Kategoriler')->orderBy('KategoriAdi')->get();
+        $kategoriler = DB::connection('mysql')->table('Kategoriler')->orderBy('KategoriAdi')->get();
         return view('urunler.yonetim.create', compact('kategoriler'));
     }
 
@@ -33,12 +33,12 @@ class UrunController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'UrunKodu'      => 'required|string|max:50|unique:sqlsrv.Urunler,UrunKodu',
-            'KategoriId'    => 'nullable|exists:sqlsrv.Kategoriler,Id',
+            'UrunKodu'      => 'required|string|max:50|unique:mysql.Urunler,UrunKodu',
+            'KategoriId'    => 'nullable|exists:mysql.Kategoriler,Id',
             'Gram'          => 'nullable|numeric|min:0',
         ]);
 
-        DB::connection('sqlsrv')->table('Urunler')->insert([
+        DB::connection('mysql')->table('Urunler')->insert([
             'UrunKodu'   => $validated['UrunKodu'],
             'KategoriId' => $validated['KategoriId'],
             'Gram'       => $validated['Gram'] ?? 0,
@@ -52,8 +52,8 @@ class UrunController extends Controller
      */
     public function edit($id)
     {
-        $urun = DB::connection('sqlsrv')->table('Urunler')->where('Id', $id)->first();
-        $kategoriler = DB::connection('sqlsrv')->table('Kategoriler')->orderBy('KategoriAdi')->get();
+        $urun = DB::connection('mysql')->table('Urunler')->where('Id', $id)->first();
+        $kategoriler = DB::connection('mysql')->table('Kategoriler')->orderBy('KategoriAdi')->get();
 
         if (!$urun) {
             abort(404, 'Ürün bulunamadı.');
@@ -69,11 +69,11 @@ class UrunController extends Controller
     {
         $validated = $request->validate([
             'UrunKodu'      => 'required|string|max:50',
-            'KategoriId'    => 'nullable|exists:sqlsrv.Kategoriler,Id',
+            'KategoriId'    => 'nullable|exists:mysql.Kategoriler,Id',
             'Gram'          => 'nullable|numeric|min:0',
         ]);
 
-        DB::connection('sqlsrv')->table('Urunler')->where('Id', $id)->update($validated);
+        DB::connection('mysql')->table('Urunler')->where('Id', $id)->update($validated);
 
         return redirect()->route('urunler.index')->with('success', 'Ürün başarıyla güncellendi!');
     }
@@ -81,7 +81,7 @@ class UrunController extends Controller
     public function getData(Request $request)
     {
         try {
-            $query = DB::connection('sqlsrv')->table('Urunler as u')
+            $query = DB::connection('mysql')->table('Urunler as u')
                 ->leftJoin('Kategoriler as k', 'u.KategoriId', '=', 'k.Id')
                 ->select('u.Id', 'u.UrunKodu', 'k.KategoriAdi', 'u.Gram');
 
@@ -130,7 +130,7 @@ class UrunController extends Controller
             $data = $query->skip($start)->take($length)->get();
             
             // Toplam Kayıt (Filtresiz)
-            $totalRecords = DB::connection('sqlsrv')->table('Urunler')->count();
+            $totalRecords = DB::connection('mysql')->table('Urunler')->count();
 
             return response()->json([
                 'draw' => (int)$request->input('draw', 1),
@@ -158,7 +158,7 @@ class UrunController extends Controller
      */
     public function detay($siparis_id, $stok_kodu)
     {
-        $urun = DB::connection('sqlsrv')->table('SiparisUrunleri as u')
+        $urun = DB::connection('mysql')->table('SiparisUrunleri as u')
             ->leftJoin('Urunler as ur', 'u.StokKodu', '=', 'ur.UrunKodu')
             ->leftJoin('Kategoriler as k', 'ur.KategoriId', '=', 'k.Id')
             ->leftJoin('Siparisler as s', 's.SiparisID', '=', 'u.SiparisID')
@@ -191,7 +191,7 @@ class UrunController extends Controller
             $kokKod = $parts[0]; 
 
             // Veritabanında ara (Gramı > 0 olanı önceliklendir)
-            $yedekUrun = DB::connection('sqlsrv')->table('Urunler')
+            $yedekUrun = DB::connection('mysql')->table('Urunler')
                 ->whereIn('UrunKodu', [$temizKod, $kokKod])
                 ->where('Gram', '>', 0)
                 ->orderByDesc('Gram')
@@ -226,7 +226,7 @@ class UrunController extends Controller
             ];
         }
 
-        $ekstralar = DB::connection('sqlsrv')->table('SiparisEkstralar')
+        $ekstralar = DB::connection('mysql')->table('SiparisEkstralar')
             ->where('SiparisID', $siparis_id)
             ->selectRaw("
                 SUM(CASE WHEN Tur = 'GELIR' THEN Tutar ELSE 0 END) as ToplamGelir,
@@ -285,7 +285,7 @@ class UrunController extends Controller
             // Site entegrasyonu kendi içinde kâr hesaplıyor, tekrar yapmaya gerek yok
             $count = 0;
             if ($kapsam == 'etsy' || (!$kapsam)) {
-                $query = DB::connection('sqlsrv')->table('Siparisler')
+                $query = DB::connection('mysql')->table('Siparisler')
                     ->where('SiparisDurumu', '!=', 8)
                     ->where('PazaryeriID', 3) // Sadece Etsy
                     ->orderBy('Tarih', 'desc')
@@ -351,7 +351,7 @@ class UrunController extends Controller
             }
 
             try {
-                $exists = DB::connection('sqlsrv')->table('Urunler')->where('UrunKodu', $urunKodu)->first();
+                $exists = DB::connection('mysql')->table('Urunler')->where('UrunKodu', $urunKodu)->first();
 
                 if ($exists) {
                     $updateData = [];
@@ -359,11 +359,11 @@ class UrunController extends Controller
                     if ($gram !== null && is_numeric($gram)) $updateData['Gram'] = $gram;
 
                     if (!empty($updateData)) {
-                        DB::connection('sqlsrv')->table('Urunler')->where('Id', $exists->Id)->update($updateData);
+                        DB::connection('mysql')->table('Urunler')->where('Id', $exists->Id)->update($updateData);
                         $updated++;
                     }
                 } else {
-                    DB::connection('sqlsrv')->table('Urunler')->insert([
+                    DB::connection('mysql')->table('Urunler')->insert([
                         'UrunKodu'   => $urunKodu,
                         'KategoriId' => $kategoriId,
                         'Gram'       => (is_numeric($gram) ? $gram : 0),
@@ -388,13 +388,13 @@ class UrunController extends Controller
     public function destroy($id)
     {
         try {
-            $urun = DB::connection('sqlsrv')->table('Urunler')->where('Id', $id)->first();
+            $urun = DB::connection('mysql')->table('Urunler')->where('Id', $id)->first();
             
             if (!$urun) {
                 return response()->json(['success' => false, 'message' => 'Ürün bulunamadı.'], 404);
             }
 
-            DB::connection('sqlsrv')->table('Urunler')->where('Id', $id)->delete();
+            DB::connection('mysql')->table('Urunler')->where('Id', $id)->delete();
 
             return response()->json(['success' => true, 'message' => 'Ürün başarıyla silindi.']);
         } catch (\Exception $e) {

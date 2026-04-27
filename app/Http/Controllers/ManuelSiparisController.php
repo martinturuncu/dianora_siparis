@@ -9,7 +9,7 @@ class ManuelSiparisController extends Controller
 {
     public function create()
     {
-        $pazaryerleri = DB::connection('sqlsrv')
+        $pazaryerleri = DB::connection('mysql')
             ->table('Pazaryerleri')
             ->orderBy('Ad')
             ->get();
@@ -42,7 +42,7 @@ class ManuelSiparisController extends Controller
         // 3) MANUEL SİPARİŞ ID OLUŞTUR
         $prefix = "M";
 
-        $sonManuel = DB::connection('sqlsrv')
+        $sonManuel = DB::connection('mysql')
             ->table('Siparisler')
             ->where('SiparisID', 'LIKE', $prefix . '%')
             ->orderBy('SiparisID', 'desc')
@@ -66,7 +66,7 @@ class ManuelSiparisController extends Controller
         }
 
         // 5) SİPARİŞ KAYDET
-        DB::connection('sqlsrv')
+        DB::connection('mysql')
             ->table('Siparisler')
             ->insert([
                 'SiparisID'     => $yeniSiparisID,
@@ -92,7 +92,7 @@ class ManuelSiparisController extends Controller
             $girilen = trim($urunKodu);
             
             // 1. Önce tam eşleşme ara (Case Insensitive - DB Collation handled)
-            $urun = DB::connection('sqlsrv')
+            $urun = DB::connection('mysql')
                 ->table('Urunler as ur')
                 ->leftJoin('Kategoriler as k', 'ur.KategoriId', '=', 'k.Id')
                 ->whereRaw("UPPER(ur.UrunKodu) = ?", [strtoupper($girilen)]) // Kullanıcı girdisi neyse onu gönder, ama i/I sorunu olmasın diye strtoupper yapabiliriz. Fakat en temizi DB'ye bırakmaktır.
@@ -105,7 +105,7 @@ class ManuelSiparisController extends Controller
             // Veritabanı Türkçe collation ise 'yeni' -> 'YENİ' yapar.
             // Biz 'YENI' gönderirsek 'YENI' kalır ve eşleşmez.
             if (!$urun) {
-                 $urun = DB::connection('sqlsrv')
+                 $urun = DB::connection('mysql')
                     ->table('Urunler as ur')
                     ->leftJoin('Kategoriler as k', 'ur.KategoriId', '=', 'k.Id')
                     ->whereRaw("UPPER(ur.UrunKodu) = UPPER(?)", [$girilen . '-yeni'])
@@ -115,7 +115,7 @@ class ManuelSiparisController extends Controller
 
             if (!$urun) {
                 // Eğer bir ürün bulunamazsa işlemi geri al ve hata döndür
-                DB::connection('sqlsrv')->table('Siparisler')->where('SiparisID', $yeniSiparisID)->delete();
+                DB::connection('mysql')->table('Siparisler')->where('SiparisID', $yeniSiparisID)->delete();
                 return back()->with('hata', "Stok Kodu '{$urunKodu}' olan ürün bulunamadı. Lütfen kontrol edip tekrar deneyin.");
             }
 
@@ -153,7 +153,7 @@ class ManuelSiparisController extends Controller
             $satisFiyatiToplam = $satisFiyatiToplam * $dolarKuru;
         }
 
-            DB::connection('sqlsrv')
+            DB::connection('mysql')
                 ->table('SiparisUrunleri')
                 ->insert([
                     'SiparisID'  => $yeniSiparisID,
@@ -194,3 +194,4 @@ class ManuelSiparisController extends Controller
         }
     }
 }
+

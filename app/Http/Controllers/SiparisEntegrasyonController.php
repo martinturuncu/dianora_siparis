@@ -177,11 +177,11 @@ class SiparisEntegrasyonController extends Controller
                     // --- SİPARİŞİ KAYDET / GÜNCELLE (Upsert) --- //
                     // SiparisID kolonu varchar (manuel için 'M00001' gibi), string olarak sorgula
                     $siparisIdStr = (string)$s->ID;
-                    $kayitVar = DB::connection('sqlsrv')->table('Siparisler')
+                    $kayitVar = DB::connection('mysql')->table('Siparisler')
                         ->where('SiparisID', $siparisIdStr)
                         ->exists();
 
-                    DB::connection('sqlsrv')->table('Siparisler')->updateOrInsert(
+                    DB::connection('mysql')->table('Siparisler')->updateOrInsert(
                         ['SiparisID' => $siparisIdStr],
                         $data
                     );
@@ -201,11 +201,11 @@ class SiparisEntegrasyonController extends Controller
                         $fa = $s->FaturaAdresi;
                         $ulkeKod = $fa->Ulke->Alpha2Code ?? "";
 
-                        DB::connection('sqlsrv')->table('FaturaBilgisi')
+                        DB::connection('mysql')->table('FaturaBilgisi')
                             ->where('SiparisID', $siparisIdStr)
                             ->delete();
 
-                        DB::connection('sqlsrv')->table('FaturaBilgisi')->insert([
+                        DB::connection('mysql')->table('FaturaBilgisi')->insert([
                             'SiparisID'     => $siparisIdStr,
                             'FaturaAdresID' => (int)($fa->ID ?? 0),
                             'Adres'         => $fa->Adres ?? "",
@@ -227,7 +227,7 @@ class SiparisEntegrasyonController extends Controller
                     // --- ÜRÜNLERİ SENKRONİZE ET --- //
 
                     // Önce eski ürünleri sil
-                    DB::connection('sqlsrv')->table('SiparisUrunleri')->where('SiparisID', $siparisIdStr)->delete();
+                    DB::connection('mysql')->table('SiparisUrunleri')->where('SiparisID', $siparisIdStr)->delete();
 
                     // Ürünleri API'den Çek
                     $urunlerResponse = $client->SelectSiparisUrun([
@@ -273,7 +273,7 @@ class SiparisEntegrasyonController extends Controller
                     }
 
                     foreach ($apiUrunler as $u) {
-                        DB::connection('sqlsrv')->table('SiparisUrunleri')->insert([
+                        DB::connection('mysql')->table('SiparisUrunleri')->insert([
                             'SiparisID'  => $siparisIdStr,
                             'UrunAdi'    => $u->UrunAdi ?? "",
                             'StokKodu'   => $u->StokKodu ?? "",

@@ -82,7 +82,7 @@ class SiparisSyncService
             ->get();
 
         // Fatura bilgilerini çek - SQL Server conversion hatalarını önlemek için string olarak zorla
-        $invoiceInfos = \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('FaturaBilgisi')
+        $invoiceInfos = \Illuminate\Support\Facades\DB::connection('mysql')->table('FaturaBilgisi')
             ->whereIn(\Illuminate\Support\Facades\DB::raw('CAST(SiparisID AS NVARCHAR(255))'), $orderIds)
             ->get();
 
@@ -155,7 +155,7 @@ class SiparisSyncService
 
                 // Verileri yerel veritabanına kaydet
                 // Transaction kullanarak bütünlük sağla
-                \Illuminate\Support\Facades\DB::connection('sqlsrv')->transaction(function () use ($orders, $orderItems, $invoiceInfos) {
+                \Illuminate\Support\Facades\DB::connection('mysql')->transaction(function () use ($orders, $orderItems, $invoiceInfos) {
                     
                     // 1. Siparişleri Kaydet
                     foreach ($orders as $orderData) {
@@ -185,10 +185,10 @@ class SiparisSyncService
                              $id = $cleanItemData['Id'];
                              
                              // Check if exists using explicit connection
-                             $exists = \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('SiparisUrunleri')->where('Id', $id)->exists();
+                             $exists = \Illuminate\Support\Facades\DB::connection('mysql')->table('SiparisUrunleri')->where('Id', $id)->exists();
 
                              if ($exists) {
-                                 \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('SiparisUrunleri')->where('Id', $id)->update($updateItemData);
+                                 \Illuminate\Support\Facades\DB::connection('mysql')->table('SiparisUrunleri')->where('Id', $id)->update($updateItemData);
                              } else {
                                  // Insert with Identity Insert using COMBINED raw SQL to ensure same session
                                  $columns = array_keys($cleanItemData);
@@ -202,7 +202,7 @@ class SiparisSyncService
                                  ";
 
                                  try {
-                                     \Illuminate\Support\Facades\DB::connection('sqlsrv')->statement($sql, array_values($cleanItemData));
+                                     \Illuminate\Support\Facades\DB::connection('mysql')->statement($sql, array_values($cleanItemData));
                                  } catch (\Exception $e) {
                                      Log::error("SiparisUrunleri Raw Insert Error ID: $id - " . $e->getMessage());
                                      throw $e;
@@ -220,10 +220,10 @@ class SiparisSyncService
                             $id = $cleanInvoiceData['ID'];
 
                             // Check if exists
-                            $exists = \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('FaturaBilgisi')->where('ID', $id)->exists();
+                            $exists = \Illuminate\Support\Facades\DB::connection('mysql')->table('FaturaBilgisi')->where('ID', $id)->exists();
 
                             if ($exists) {
-                                \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('FaturaBilgisi')
+                                \Illuminate\Support\Facades\DB::connection('mysql')->table('FaturaBilgisi')
                                     ->where('ID', $id)
                                     ->update($updateInvoiceData);
                             } else {
@@ -239,7 +239,7 @@ class SiparisSyncService
                                 ";
 
                                 try {
-                                    \Illuminate\Support\Facades\DB::connection('sqlsrv')->statement($sql, array_values($cleanInvoiceData));
+                                    \Illuminate\Support\Facades\DB::connection('mysql')->statement($sql, array_values($cleanInvoiceData));
                                 } catch (\Exception $e) {
                                      Log::error("FaturaBilgisi Raw Insert Error ID: $id - " . $e->getMessage());
                                      throw $e;
@@ -283,3 +283,4 @@ class SiparisSyncService
         File::put($file, $date);
     }
 }
+

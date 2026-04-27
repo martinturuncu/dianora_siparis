@@ -27,7 +27,7 @@ class FiyatController extends Controller
 
     public function index()
     {
-        $kategoriler = DB::connection('sqlsrv')
+        $kategoriler = DB::connection('mysql')
             ->table('Kategoriler')
             ->select('Id', 'KategoriAdi', 'KarOrani', 'KategoriKodu')
             ->orderBy('KategoriAdi')
@@ -44,8 +44,8 @@ class FiyatController extends Controller
         ];
 
         // Sihirbaz özel ayarlarını getir
-        $wizardAltin = DB::connection('sqlsrv')->table('sabit_ayarlar')->where('Anahtar', 'wizard_altin_fiyat')->value('Deger');
-        $wizardDolar = DB::connection('sqlsrv')->table('sabit_ayarlar')->where('Anahtar', 'wizard_dolar_kuru')->value('Deger');
+        $wizardAltin = DB::connection('mysql')->table('sabit_ayarlar')->where('Anahtar', 'wizard_altin_fiyat')->value('Deger');
+        $wizardDolar = DB::connection('mysql')->table('sabit_ayarlar')->where('Anahtar', 'wizard_dolar_kuru')->value('Deger');
 
         // Eğer yoksa güncel genel ayarları varsayılan yap
         if (!$wizardAltin || !$wizardDolar) {
@@ -62,7 +62,7 @@ class FiyatController extends Controller
         $kod = trim($request->urun_kodu);
         if(!$kod) return response()->json(['status' => false]);
 
-        $urun = DB::connection('sqlsrv')->table('Urunler')
+        $urun = DB::connection('mysql')->table('Urunler')
             ->where('UrunKodu', $kod)
             ->orWhere('UrunKodu', $kod . '-yeni')
             ->select('Gram', 'KategoriId', 'UrunKodu')
@@ -87,7 +87,7 @@ class FiyatController extends Controller
             } else {
                 // Kategori seçili değilse ve manuel girilmediyse 0
                 if ($kategoriId) {
-                    $kat = DB::connection('sqlsrv')->table('Kategoriler')->where('Id', $kategoriId)->first();
+                    $kat = DB::connection('mysql')->table('Kategoriler')->where('Id', $kategoriId)->first();
                     if($kat) $karOrani = $kat->KarOrani ?? 0;
                 }
             }
@@ -96,7 +96,7 @@ class FiyatController extends Controller
             if($indirimOrani < 0) $indirimOrani = 0;
             if($indirimOrani > 100) $indirimOrani = 100;
 
-            $pazaryerleri = DB::connection('sqlsrv')->table('Pazaryerleri')->get();
+            $pazaryerleri = DB::connection('mysql')->table('Pazaryerleri')->get();
 
             // --- MALİYETLER ---
             $altinFiyat = (float)$request->input('altin_fiyat');
@@ -104,13 +104,13 @@ class FiyatController extends Controller
 
             // Gelen değerleri kaydet (Kalıcı olması için)
             if ($altinFiyat > 0) {
-                DB::connection('sqlsrv')->table('sabit_ayarlar')->updateOrInsert(
+                DB::connection('mysql')->table('sabit_ayarlar')->updateOrInsert(
                     ['Anahtar' => 'wizard_altin_fiyat'],
                     ['Deger' => $altinFiyat, 'Aciklama' => 'Wizard Last Gold Price', 'updated_at' => now()]
                 );
             }
             if ($dolarKuru > 0) {
-                DB::connection('sqlsrv')->table('sabit_ayarlar')->updateOrInsert(
+                DB::connection('mysql')->table('sabit_ayarlar')->updateOrInsert(
                     ['Anahtar' => 'wizard_dolar_kuru'],
                     ['Deger' => $dolarKuru, 'Aciklama' => 'Wizard Last Dollar Rate', 'updated_at' => now()]
                 );
@@ -413,13 +413,13 @@ class FiyatController extends Controller
 
         // Gelen değerleri kaydet (Kalıcı olması için)
         if ($altinFiyat > 0) {
-            DB::connection('sqlsrv')->table('sabit_ayarlar')->updateOrInsert(
+            DB::connection('mysql')->table('sabit_ayarlar')->updateOrInsert(
                 ['Anahtar' => 'wizard_altin_fiyat'],
                 ['Deger' => $altinFiyat, 'Aciklama' => 'Wizard Last Gold Price', 'updated_at' => now()]
             );
         }
         if ($dolarKuru > 0) {
-            DB::connection('sqlsrv')->table('sabit_ayarlar')->updateOrInsert(
+            DB::connection('mysql')->table('sabit_ayarlar')->updateOrInsert(
                 ['Anahtar' => 'wizard_dolar_kuru'],
                 ['Deger' => $dolarKuru, 'Aciklama' => 'Wizard Last Dollar Rate', 'updated_at' => now()]
             );
@@ -437,7 +437,7 @@ class FiyatController extends Controller
         if($indirimOrani > 100) $indirimOrani = 100;
 
         // Site (dianorapiercing.com) parametreleri - ID: 1
-        $sitePazar = DB::connection('sqlsrv')->table('Pazaryerleri')->where('id', 1)->first();
+        $sitePazar = DB::connection('mysql')->table('Pazaryerleri')->where('id', 1)->first();
         $komisyonOrani = 0;
         if ($sitePazar) {
             $hamKomisyon = (float)($sitePazar->KomisyonOrani ?? 0);
@@ -459,7 +459,7 @@ class FiyatController extends Controller
                 $aranacakKodlar[] = $kod . '-YENİ';
             }
 
-            $urun = DB::connection('sqlsrv')->table('Urunler')
+            $urun = DB::connection('mysql')->table('Urunler')
                 ->whereIn('UrunKodu', $aranacakKodlar)
                 ->select('Gram', 'KategoriId', 'UrunKodu')
                 ->first();
@@ -479,7 +479,7 @@ class FiyatController extends Controller
             $karOrani = 0;
             $kategoriAdi = '-';
             if ($urun->KategoriId) {
-                $kat = DB::connection('sqlsrv')->table('Kategoriler')->where('Id', $urun->KategoriId)->first();
+                $kat = DB::connection('mysql')->table('Kategoriler')->where('Id', $urun->KategoriId)->first();
                 if($kat) {
                     $karOrani = $kat->KarOrani ?? 0;
                     $kategoriAdi = $kat->KategoriAdi ?? '-';
@@ -616,13 +616,13 @@ class FiyatController extends Controller
             $dolarKuru = (float)$request->input('dolar_kuru');
 
             if ($altinFiyat > 0) {
-                DB::connection('sqlsrv')->table('sabit_ayarlar')->updateOrInsert(
+                DB::connection('mysql')->table('sabit_ayarlar')->updateOrInsert(
                     ['Anahtar' => 'wizard_altin_fiyat'],
                     ['Deger' => $altinFiyat, 'Aciklama' => 'Wizard Last Gold Price', 'updated_at' => now()]
                 );
             }
             if ($dolarKuru > 0) {
-                DB::connection('sqlsrv')->table('sabit_ayarlar')->updateOrInsert(
+                DB::connection('mysql')->table('sabit_ayarlar')->updateOrInsert(
                     ['Anahtar' => 'wizard_dolar_kuru'],
                     ['Deger' => $dolarKuru, 'Aciklama' => 'Wizard Last Dollar Rate', 'updated_at' => now()]
                 );

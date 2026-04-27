@@ -31,13 +31,13 @@ class KarHesapService
         // Eğer o tarihe uygun ayar bulunamazsa, hesaplamayı durdur.
         if (!$ayar) {
             // Kar tablosuna karı 0 olarak kaydet.
-            DB::connection('sqlsrv')->table('SiparisKarlar')->updateOrInsert(
+            DB::connection('mysql')->table('SiparisKarlar')->updateOrInsert(
                 ['SiparisID' => $urun->SiparisID, 'UrunKodu' => $urun->StokKodu],
                 ['GercekKar' => 0, 'HesapTarihi' => now()]
             );
 
             // Sipariş notlarına sistem notu olarak ekle.
-            DB::connection('sqlsrv')->table('SiparisNotlari')->insert([
+            DB::connection('mysql')->table('SiparisNotlari')->insert([
                 'SiparisID' => $urun->SiparisID,
                 'Not'       => 'SİSTEM: Kâr hesaplanamadı. Sipariş tarihinde geçerli bir ayar kaydı bulunamadı.',
                 'Tarih'     => now()
@@ -92,7 +92,7 @@ class KarHesapService
 
             // Urunler tablosundan gramajı sorgula
             if (!empty($aranacakKodlar)) {
-                $anaUrun = DB::connection('sqlsrv')
+                $anaUrun = DB::connection('mysql')
                     ->table('Urunler')
                     ->whereIn('UrunKodu', $aranacakKodlar)
                     ->where('Gram', '>', 0)
@@ -112,7 +112,7 @@ class KarHesapService
             $stokKoduYeni = $stokKodu . '-yeni';
             
             // 1. Veritabanında "-yeni" eklenmiş hali var mı?
-            $kayitYeni = DB::connection('sqlsrv')
+            $kayitYeni = DB::connection('mysql')
                 ->table('SiparisKarlar')
                 ->where('SiparisID', $siparisId)
                 ->where('UrunKodu', $stokKoduYeni)
@@ -123,7 +123,7 @@ class KarHesapService
             }
             
             // 2. Veritabanında orijinal hali var mı?
-            $kayitOrijinal = DB::connection('sqlsrv')
+            $kayitOrijinal = DB::connection('mysql')
                 ->table('SiparisKarlar')
                 ->where('SiparisID', $siparisId)
                 ->where('UrunKodu', $stokKodu)
@@ -197,7 +197,7 @@ class KarHesapService
             $karUSD = $netUSD - $toplamMaliyetUSD;
             $karTL  = round($karUSD * $dolarKuru, 2);
 
-            DB::connection('sqlsrv')->table('SiparisKarlar')->updateOrInsert(
+            DB::connection('mysql')->table('SiparisKarlar')->updateOrInsert(
                 ['SiparisID' => $urun->SiparisID, 'UrunKodu' => $finalStokKodu],
                 ['GercekKar' => $karTL, 'Vergi' => 0, 'HesapTarihi' => now()]
             );
@@ -310,7 +310,7 @@ class KarHesapService
         $gercekKarToplam = round($gercekNetSatisBirim - $toplamMaliyet, 2);
         
         // Veritabanına kaydet
-        DB::connection('sqlsrv')->table('SiparisKarlar')->updateOrInsert(
+        DB::connection('mysql')->table('SiparisKarlar')->updateOrInsert(
             ['SiparisID' => $urun->SiparisID, 'UrunKodu' => $finalStokKodu],
             ['GercekKar' => $gercekKarToplam, 'Vergi' => $vergi, 'HesapTarihi' => now()]
         );
@@ -360,7 +360,7 @@ class KarHesapService
     public function hesaplaSiparis($siparisId)
     {
         // 1. Sipariş Detaylarını Çek
-        $siparis = DB::connection('sqlsrv')->table('Siparisler as s')
+        $siparis = DB::connection('mysql')->table('Siparisler as s')
             ->leftJoin('Pazaryerleri as p', 'p.id', '=', 's.PazaryeriID')
             ->select('s.*', 'p.KomisyonOrani', 'p.Ad as PazaryeriAdi', 's.HediyeCekiTutari')
             ->where('s.SiparisID', $siparisId)
@@ -369,7 +369,7 @@ class KarHesapService
         if (!$siparis) return null;
 
         // 2. Sipariş Ürünlerini Çek
-        $urunler = DB::connection('sqlsrv')->table('SiparisUrunleri as u')
+        $urunler = DB::connection('mysql')->table('SiparisUrunleri as u')
             ->leftJoin('Urunler as main', 'main.UrunKodu', '=', 'u.StokKodu') 
             ->where('u.SiparisID', $siparisId)
             ->select('u.*', 'main.Gram as AnaGram')
@@ -420,7 +420,7 @@ class KarHesapService
             $zararTL = ((int)$siparis->SiparisDurumu === 9) ? (2 * $kargoMaliyetiTL) : 0; 
             
             // Ekstraları dahil et (İptal olsa bile ek gelir/gider olabilir)
-            $ekstralar = DB::connection('sqlsrv')->table('SiparisEkstralar')
+            $ekstralar = DB::connection('mysql')->table('SiparisEkstralar')
                 ->where('SiparisID', $siparisId)
                 ->get();
             $ekstraNet = $ekstralar->sum(fn($e) => $e->Tur == 'GELIR' ? $e->Tutar : -$e->Tutar);
@@ -428,7 +428,7 @@ class KarHesapService
             $gercekKarTL = round(-$zararTL + $ekstraNet, 2);
             
             // DB Update (TOPLAM satırına ekle)
-            DB::connection('sqlsrv')->table('SiparisKarlar')->updateOrInsert(
+            DB::connection('mysql')->table('SiparisKarlar')->updateOrInsert(
                 ['SiparisID' => $siparisId, 'UrunKodu' => 'TOPLAM'],
                 ['GercekKar' => $gercekKarTL, 'Vergi' => 0, 'HesapTarihi' => now()]
             );
@@ -503,7 +503,7 @@ class KarHesapService
                  $temizKod = preg_replace('/[- ]?(yeni|eski|YENI|YENİ|ESKI|ESKİ)/iu', '', $u->StokKodu);
                  $kokKod = explode('-', $u->StokKodu)[0];
                  
-                 $yedekUrun = DB::connection('sqlsrv')->table('Urunler')
+                 $yedekUrun = DB::connection('mysql')->table('Urunler')
                     ->whereIn('UrunKodu', [$temizKod, $kokKod, $u->StokKodu . '-yeni'])
                     ->where('Gram', '>', 0)
                     ->select('Gram')
@@ -696,7 +696,7 @@ class KarHesapService
         }
 
         // 7. Ekstralar
-        $ekstralar = DB::connection('sqlsrv')->table('SiparisEkstralar')
+        $ekstralar = DB::connection('mysql')->table('SiparisEkstralar')
             ->where('SiparisID', $siparisId)
             ->get();
         // Şimdilik mantığı bozmadan sona ekliyoruz.
@@ -718,7 +718,7 @@ class KarHesapService
             }
             
             // DB Kayıt
-            DB::connection('sqlsrv')->table('SiparisKarlar')->updateOrInsert(
+            DB::connection('mysql')->table('SiparisKarlar')->updateOrInsert(
                 ['SiparisID' => $siparisId, 'UrunKodu' => 'TOPLAM'],
                 ['GercekKar' => $gercekNetKar, 'Vergi' => 0, 'HesapTarihi' => now()]
             );
@@ -799,7 +799,7 @@ class KarHesapService
                  $gercekNetKar = 0;
              }
 
-             DB::connection('sqlsrv')->table('SiparisKarlar')->updateOrInsert(
+             DB::connection('mysql')->table('SiparisKarlar')->updateOrInsert(
                  ['SiparisID' => $siparisId, 'UrunKodu' => 'TOPLAM'],
                  ['GercekKar' => $gercekNetKar, 'Vergi' => $toplamVergi, 'HesapTarihi' => now()]
              );

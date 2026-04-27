@@ -24,7 +24,7 @@ class EtsyService
 
     protected function loadCredentials()
     {
-        $settings = DB::connection('sqlsrv')->table('sabit_ayarlar')
+        $settings = DB::connection('mysql')->table('sabit_ayarlar')
             ->whereIn('Anahtar', ['etsy_client_id', 'etsy_client_secret', 'etsy_refresh_token', 'etsy_shop_id'])
             ->pluck('Deger', 'Anahtar');
 
@@ -73,7 +73,7 @@ class EtsyService
             $receiptId = (string)$receipt['receipt_id'];
 
             // Duplicate Check
-            $existingOrder = DB::connection('sqlsrv')->table('Siparisler')
+            $existingOrder = DB::connection('mysql')->table('Siparisler')
                 ->where('SiparisID', $receiptId)
                 ->first();
 
@@ -117,7 +117,7 @@ class EtsyService
                 // Adres ve detayları artık almıyoruz (API vermiyor)
 
                 if (!empty($updateData)) {
-                     DB::connection('sqlsrv')->table('Siparisler')
+                     DB::connection('mysql')->table('Siparisler')
                         ->where('SiparisID', $receiptId)
                         ->update($updateData);
                      $updatedCount++;
@@ -127,7 +127,7 @@ class EtsyService
 
             // Yeni Sipariş Insert
             try {
-                DB::connection('sqlsrv')->transaction(function () use ($receipt, $convertedStatus, $receiptId, $buyerName, $email, $telefon, $accessToken) {
+                DB::connection('mysql')->transaction(function () use ($receipt, $convertedStatus, $receiptId, $buyerName, $email, $telefon, $accessToken) {
                     
                     // KUR HESABI
                     $orderDate = Carbon::createFromTimestamp($receipt['created_timestamp'])->setTimezone('Europe/Istanbul');
@@ -144,7 +144,7 @@ class EtsyService
                     $indirimTRY    = $indirimUSD * $dolarKuru;
 
                     // 1. Siparişi Ekle
-                    DB::connection('sqlsrv')->table('Siparisler')->insert([
+                    DB::connection('mysql')->table('Siparisler')->insert([
                         'SiparisID'     => $receiptId,
                         'AdiSoyadi'     => $buyerName,
                         'Email'         => $email,
@@ -172,7 +172,7 @@ class EtsyService
                         $priceUSD = $this->parseMoney($trans['price'] ?? []);
                         $priceTRY = $priceUSD * $dolarKuru;
                         
-                        DB::connection('sqlsrv')->table('SiparisUrunleri')->insert([
+                        DB::connection('mysql')->table('SiparisUrunleri')->insert([
                             'SiparisID'  => $receiptId,
                             'UrunAdi'    => $trans['title'] ?? 'Etsy Product',
                             'StokKodu'   => $trans['sku'] ?? '',
@@ -379,7 +379,7 @@ class EtsyService
 
     private function updateSetting($key, $value)
     {
-        DB::connection('sqlsrv')->table('sabit_ayarlar')
+        DB::connection('mysql')->table('sabit_ayarlar')
             ->where('Anahtar', $key)
             ->update(['Deger' => $value]);
     }
@@ -402,3 +402,4 @@ class EtsyService
         return "Sipariş bulunamadı.";
     }
 }
+

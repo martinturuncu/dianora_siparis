@@ -68,7 +68,7 @@ class SiparisController extends Controller
 
         // 1. ADIM: Filtrelere uygun Sipariş ID'lerini bul (Pagination için)
         // Base Query
-        $query = DB::connection('sqlsrv')->table('Siparisler as s')
+        $query = DB::connection('mysql')->table('Siparisler as s')
             ->select('s.SiparisID');
 
         // Search Filter (Join gerekli olabilir)
@@ -162,10 +162,10 @@ class SiparisController extends Controller
                 u.Tutar, 
                 u.KdvTutari,
 
-                ISNULL(sk.GercekKar, 0) AS SiparisKar,
-                ISNULL(se.ToplamEkstra, 0) AS SiparisEkstra,
-                ISNULL(mc.SiparisSayisi, 1) as MusteriSiparisSayisi,
-                ISNULL(mc.IptalSayisi, 0) as MusteriIptalSayisi
+                IFNULL(sk.GercekKar, 0) AS SiparisKar,
+                IFNULL(se.ToplamEkstra, 0) AS SiparisEkstra,
+                IFNULL(mc.SiparisSayisi, 1) as MusteriSiparisSayisi,
+                IFNULL(mc.IptalSayisi, 0) as MusteriIptalSayisi
 
             FROM Siparisler s
             INNER JOIN SiparisUrunleri u ON s.SiparisID = u.SiparisID
@@ -216,7 +216,7 @@ class SiparisController extends Controller
             ORDER BY s.Tarih DESC
             ";
 
-            $siparisler = collect(DB::connection('sqlsrv')->select($sql, $pageIds));
+            $siparisler = collect(DB::connection('mysql')->select($sql, $pageIds));
         }
 
         // Hediye Kodlarını Çek (Görünüm ve Kontrol İçin - EN GÜNCEL OLANLAR)
@@ -224,7 +224,7 @@ class SiparisController extends Controller
             ->orderBy('tarih', 'desc')
             ->first();
 
-        $pazaryerleri = DB::connection('sqlsrv')->table('Pazaryerleri')->get();
+        $pazaryerleri = DB::connection('mysql')->table('Pazaryerleri')->get();
         
         $hediyeKodlari = [];
         if ($ayar && isset($ayar->hediye_kodlari)) {
@@ -248,7 +248,7 @@ class SiparisController extends Controller
     public function show($id, \App\Services\KarHesapService $karService)
     {
         // 1. Sipariş Başlığını Çek
-        $siparis = DB::connection('sqlsrv')->table('Siparisler as s')
+        $siparis = DB::connection('mysql')->table('Siparisler as s')
             ->leftJoin('Pazaryerleri as p', 'p.id', '=', 's.PazaryeriID')
             ->select(
                 's.*',
@@ -285,7 +285,7 @@ class SiparisController extends Controller
 
 
         // 2. Ürünleri Çek
-        $urunler = DB::connection('sqlsrv')->table('SiparisUrunleri as u')
+        $urunler = DB::connection('mysql')->table('SiparisUrunleri as u')
             ->where('u.SiparisID', $id)
             ->select('u.*')
             ->get();
@@ -316,7 +316,7 @@ class SiparisController extends Controller
         $allKodlar = $allKodlar->unique()->values();
 
         // Urun Bilgileri (UPPERCASE KEYING for Safety)
-        $urunBilgileri = DB::connection('sqlsrv')->table('Urunler as ur')
+        $urunBilgileri = DB::connection('mysql')->table('Urunler as ur')
             ->leftJoin('Kategoriler as k', 'ur.KategoriId', '=', 'k.Id')
             ->whereIn('ur.UrunKodu', $allKodlar)
             ->select('ur.UrunKodu', 'ur.Gram', 'k.KategoriAdi')
@@ -326,7 +326,7 @@ class SiparisController extends Controller
             });
         
         // Kâr Bilgileri (Normalization for lookup)
-        $karlar = DB::connection('sqlsrv')->table('SiparisKarlar')
+        $karlar = DB::connection('mysql')->table('SiparisKarlar')
             ->where('SiparisID', $id)
             ->whereIn('UrunKodu', $allKodlar)
             ->select('UrunKodu', 'GercekKar')
@@ -496,7 +496,7 @@ class SiparisController extends Controller
         }
         
         // 5. Ekstraları Çek
-        $ekstralar = DB::connection('sqlsrv')->table('SiparisEkstralar')
+        $ekstralar = DB::connection('mysql')->table('SiparisEkstralar')
             ->where('SiparisID', $id)
             ->get();
 
@@ -531,7 +531,7 @@ class SiparisController extends Controller
         }
 
         // 7. Notları Çek
-        $notlar = DB::connection('sqlsrv')->table('SiparisNotlari')
+        $notlar = DB::connection('mysql')->table('SiparisNotlari')
             ->where('SiparisID', $id)
             ->orderBy('Tarih', 'desc')
             ->get();
@@ -556,7 +556,7 @@ class SiparisController extends Controller
         if(!empty($musteriIdentifier) && $musteriIdentifier != '0' && $musteriIdentifier != '-') {
             // 1. TAMAMLANAN (Veya İşlem Gören) Siparişler
             // İptal (8) ve İade (9) HARİÇ olanlar "Sadakat" sayılır.
-            $oncekiSiparisQuery = DB::connection('sqlsrv')->table('Siparisler as s')
+            $oncekiSiparisQuery = DB::connection('mysql')->table('Siparisler as s')
                 ->where($musteriField, $musteriIdentifier)
                 // ->where('s.SiparisID', '!=', $id) // Şu anki siparişi de katarak genel toplam istendi
                 ->whereNotIn('s.SiparisDurumu', [8, 9]) 
@@ -565,7 +565,7 @@ class SiparisController extends Controller
             $musteriGecmisi['toplamSiparis'] = $oncekiSiparisQuery->count();
 
             // 2. İPTAL ve İADE EDİLEN Siparişler (Risk Analizi)
-            $iptalSiparisCount = DB::connection('sqlsrv')->table('Siparisler')
+            $iptalSiparisCount = DB::connection('mysql')->table('Siparisler')
                 ->where($musteriField, $musteriIdentifier)
                 ->whereIn('SiparisDurumu', [8, 9])
                 ->count();
@@ -579,14 +579,14 @@ class SiparisController extends Controller
                 // PazaryeriID'ye göre değil, direkt TOPLAM ÜRÜN ADEDİ (Miktar) lazım
                 // Ciro hesaplaması yerine toplam kaç adet ürün aldığına bakıyoruz
                 
-                $toplamUrunAdedi = DB::connection('sqlsrv')->table('SiparisUrunleri')
+                $toplamUrunAdedi = DB::connection('mysql')->table('SiparisUrunleri')
                     ->whereIn('SiparisID', $musteriSiparisIDs)
                     ->sum('Miktar');
                 
                 $musteriGecmisi['toplamUrun'] = $toplamUrunAdedi;
                 
                 // Son 5 siparişi detay için çek
-                $musteriGecmisi['oncekiSiparisler'] = DB::connection('sqlsrv')->table('Siparisler')
+                $musteriGecmisi['oncekiSiparisler'] = DB::connection('mysql')->table('Siparisler')
                     ->whereIn('SiparisID', $musteriSiparisIDs->take(5))
                     ->orderBy('Tarih', 'desc')
                     ->select('SiparisID', 'Tarih', 'SiparisNo', 'PazaryeriID') // Basit bilgiler
@@ -604,12 +604,12 @@ class SiparisController extends Controller
     public function destroy($id)
     {
         // Siparişi sil
-        DB::connection('sqlsrv')->table('Siparisler')
+        DB::connection('mysql')->table('Siparisler')
             ->where('SiparisID', $id)
             ->delete();
 
         // Sipariş ürünlerini sil
-        DB::connection('sqlsrv')->table('SiparisUrunleri')
+        DB::connection('mysql')->table('SiparisUrunleri')
             ->where('SiparisID', $id)
             ->delete();
 
@@ -619,7 +619,7 @@ class SiparisController extends Controller
     // 🟢 Manuel Sipariş Durumu Güncelleme
     public function durumGuncelle(Request $request, $id)
     {
-        $siparis = DB::connection('sqlsrv')->table('Siparisler')->where('SiparisID', $id)->first();
+        $siparis = DB::connection('mysql')->table('Siparisler')->where('SiparisID', $id)->first();
 
         if (!$siparis) {
             return back()->with('hata', 'Sipariş bulunamadı.');
@@ -627,7 +627,7 @@ class SiparisController extends Controller
 
         $yeniDurum = $request->input('durum');
 
-        DB::connection('sqlsrv')->table('Siparisler')
+        DB::connection('mysql')->table('Siparisler')
             ->where('SiparisID', $id)
             ->update(['SiparisDurumu' => $yeniDurum]);
 
@@ -636,7 +636,7 @@ class SiparisController extends Controller
 
     public function updateAyarOrani(Request $request, $id)
     {
-        $siparis = DB::connection('sqlsrv')->table('Siparisler')->where('SiparisID', $id)->first();
+        $siparis = DB::connection('mysql')->table('Siparisler')->where('SiparisID', $id)->first();
 
         if (!$siparis) {
             return back()->with('hata', 'Sipariş bulunamadı.');
@@ -648,7 +648,7 @@ class SiparisController extends Controller
 
         $ayarOrani = $request->input('ayar_orani');
 
-        DB::connection('sqlsrv')->table('Siparisler')
+        DB::connection('mysql')->table('Siparisler')
             ->where('SiparisID', $id)
             ->update(['ayar_orani' => $ayarOrani]);
 
@@ -667,7 +667,7 @@ class SiparisController extends Controller
         // ==========================================================
         
         // A) Sayıları Tek Sorguda Çek
-        $gunlukOzet = DB::connection('sqlsrv')->table('Siparisler')
+        $gunlukOzet = DB::connection('mysql')->table('Siparisler')
             ->whereDate('Tarih', $tarih)
             ->where('AdiSoyadi', '!=', 'Dianora Piercing') // 🔥 FİLTRE EKLENDİ
             ->selectRaw("
@@ -682,7 +682,7 @@ class SiparisController extends Controller
         $gunlukSiparisSayisi = $gunlukOzet->aktif ?? 0;
 
         // B) Ürün Sayısı (Sadece İptal Olmayanlar, Hediyeler Hariç)
-        $gunlukUrunSayisi = DB::connection('sqlsrv')->table('SiparisUrunleri')
+        $gunlukUrunSayisi = DB::connection('mysql')->table('SiparisUrunleri')
             ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
             ->whereDate('Siparisler.Tarih', $tarih)
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
@@ -691,7 +691,7 @@ class SiparisController extends Controller
             ->sum('SiparisUrunleri.Miktar');
 
         // B2) Hediye Ürün Sayısı
-        $gunlukHediyeSayisi = DB::connection('sqlsrv')->table('SiparisUrunleri')
+        $gunlukHediyeSayisi = DB::connection('mysql')->table('SiparisUrunleri')
             ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
             ->whereDate('Siparisler.Tarih', $tarih)
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
@@ -701,7 +701,7 @@ class SiparisController extends Controller
 
         // C) Günlük Kâr (İptaller Dahil - Zarar yansıması için)
         // DÜZELTME: Kullanıcı isteği üzerine iptal/iadeler kâr hesabından ÇIKARILIYOR.
-        $gunlukKar = DB::connection('sqlsrv')->table('SiparisKarlar')
+        $gunlukKar = DB::connection('mysql')->table('SiparisKarlar')
             ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
             ->whereDate('Siparisler.Tarih', $tarih)
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9]) 
@@ -710,15 +710,15 @@ class SiparisController extends Controller
             ->sum('SiparisKarlar.GercekKar');
 
         // D) Günlük Ciro (Sadece İptal Olmayanlar)
-        $gunlukBrutCiro = DB::connection('sqlsrv')->table('SiparisUrunleri')
+        $gunlukBrutCiro = DB::connection('mysql')->table('SiparisUrunleri')
             ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
             ->whereDate('Siparisler.Tarih', $tarih)
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
             ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
-            ->selectRaw('SUM( (ISNULL(SiparisUrunleri.Tutar, 0) + ISNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
+            ->selectRaw('SUM( (IFNULL(SiparisUrunleri.Tutar, 0) + IFNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
             ->value('ciro');
 
-        $gunlukIndirimler = DB::connection('sqlsrv')->table('Siparisler')
+        $gunlukIndirimler = DB::connection('mysql')->table('Siparisler')
             ->whereDate('Tarih', $tarih)
             ->whereNotIn('SiparisDurumu', [8, 9])
             ->where('AdiSoyadi', '!=', 'Dianora Piercing')
@@ -727,8 +727,8 @@ class SiparisController extends Controller
         $gunlukCiro = $gunlukBrutCiro - $gunlukIndirimler;
 
         // E) Günlük Reklam Gideri (Historical)
-        $gunlukReklamGideri = DB::connection('sqlsrv')->select("
-            SELECT SUM(u.Miktar * ISNULL(a.reklam, 0)) as ToplamReklam
+        $gunlukReklamGideri = DB::connection('mysql')->select("
+            SELECT SUM(u.Miktar * IFNULL(a.reklam, 0)) as ToplamReklam
             FROM SiparisUrunleri u
             JOIN Siparisler s ON s.SiparisID = u.SiparisID
             OUTER APPLY (
@@ -765,7 +765,7 @@ class SiparisController extends Controller
             $end   = Carbon::parse($bitis)->endOfDay();
 
             // A) Aralık Özeti (Sayılar)
-            $aralikOzet = DB::connection('sqlsrv')->table('Siparisler')
+            $aralikOzet = DB::connection('mysql')->table('Siparisler')
                 ->whereBetween('Tarih', [$start, $end])
                 ->where('AdiSoyadi', '!=', 'Dianora Piercing') 
                 ->selectRaw("
@@ -776,7 +776,7 @@ class SiparisController extends Controller
                 ->first();
 
             // B) Aralık Ürün Sayısı (Aktifler, Hediyeler Hariç)
-            $aralikUrunSayisi = DB::connection('sqlsrv')->table('SiparisUrunleri')
+            $aralikUrunSayisi = DB::connection('mysql')->table('SiparisUrunleri')
                 ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
@@ -785,7 +785,7 @@ class SiparisController extends Controller
                 ->sum('SiparisUrunleri.Miktar');
 
             // B2) Aralık Hediye Sayısı
-            $aralikHediyeSayisi = DB::connection('sqlsrv')->table('SiparisUrunleri')
+            $aralikHediyeSayisi = DB::connection('mysql')->table('SiparisUrunleri')
                 ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
@@ -794,7 +794,7 @@ class SiparisController extends Controller
                 ->sum('SiparisUrunleri.Miktar');
 
             // C) Aralık Kâr (İptaller Dahil -> HAYIR, ARTIK HARİÇ)
-            $aralikKar = DB::connection('sqlsrv')->table('SiparisKarlar')
+            $aralikKar = DB::connection('mysql')->table('SiparisKarlar')
                 ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
@@ -803,15 +803,15 @@ class SiparisController extends Controller
                 ->sum('SiparisKarlar.GercekKar');
             
             // D) Aralık Ciro (Aktifler)
-            $aralikBrutCiro = DB::connection('sqlsrv')->table('SiparisUrunleri')
+            $aralikBrutCiro = DB::connection('mysql')->table('SiparisUrunleri')
                 ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
-                ->selectRaw('SUM( (ISNULL(SiparisUrunleri.Tutar, 0) + ISNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
+                ->selectRaw('SUM( (IFNULL(SiparisUrunleri.Tutar, 0) + IFNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
                 ->value('ciro');
 
-            $aralikIndirimler = DB::connection('sqlsrv')->table('Siparisler')
+            $aralikIndirimler = DB::connection('mysql')->table('Siparisler')
                 ->whereBetween('Tarih', [$start, $end])
                 ->whereNotIn('SiparisDurumu', [8, 9])
                 ->where('AdiSoyadi', '!=', 'Dianora Piercing')
@@ -820,8 +820,8 @@ class SiparisController extends Controller
             $aralikCiro = $aralikBrutCiro - $aralikIndirimler;
 
              // E) Aralık Reklam Gideri (Historical)
-            $aralikReklamQuery = DB::connection('sqlsrv')->select("
-                SELECT SUM(u.Miktar * ISNULL(a.reklam, 0)) as ToplamReklam
+            $aralikReklamQuery = DB::connection('mysql')->select("
+                SELECT SUM(u.Miktar * IFNULL(a.reklam, 0)) as ToplamReklam
                 FROM SiparisUrunleri u
                 JOIN Siparisler s ON s.SiparisID = u.SiparisID
                 OUTER APPLY (
@@ -839,7 +839,7 @@ class SiparisController extends Controller
             $aralikReklamGideri = $aralikReklamQuery[0]->ToplamReklam ?? 0;
 
             // F) Aralık Vergi (Sadece Türkiye - Etsy Hariç)
-            $aralikVergi = DB::connection('sqlsrv')->table('SiparisKarlar')
+            $aralikVergi = DB::connection('mysql')->table('SiparisKarlar')
                 ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
@@ -861,7 +861,7 @@ class SiparisController extends Controller
 
             // F) Son 15 Günlük Satış Verileri (Grafik/Tablo İçin)
             // 1. Satış Adetleri
-            $satislar = DB::connection('sqlsrv')->table('SiparisUrunleri')
+            $satislar = DB::connection('mysql')->table('SiparisUrunleri')
                 ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
                 ->selectRaw("
                     FORMAT(Siparisler.Tarih, 'dd.MM.yyyy') as TarihOzel,
@@ -877,7 +877,7 @@ class SiparisController extends Controller
                 ->keyBy('TarihOzel');
 
             // 2. Kârlar (İptaller Dahil -> HAYIR, HARİÇ)
-            $karlar = DB::connection('sqlsrv')->table('SiparisKarlar')
+            $karlar = DB::connection('mysql')->table('SiparisKarlar')
                 ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
                 ->selectRaw("
                     FORMAT(Siparisler.Tarih, 'dd.MM.yyyy') as TarihOzel,
@@ -938,7 +938,7 @@ class SiparisController extends Controller
     public function liderTablosu()
     {
         // 1. En Çok Sipariş Veren Müşteriler (Adet Bazlı)
-        $topMusterilerSiparis = DB::connection('sqlsrv')->table('Siparisler')
+        $topMusterilerSiparis = DB::connection('mysql')->table('Siparisler')
             ->select('Telefon', 'AdiSoyadi', DB::raw('COUNT(*) as SiparisSayisi'))
             ->where('AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('SiparisDurumu', '!=', 8) // İptaller hariç
@@ -948,7 +948,7 @@ class SiparisController extends Controller
             ->get();
 
         // 2. En Çok Ürün Alan Müşteriler (Miktar Bazlı)
-        $topMusterilerUrun = DB::connection('sqlsrv')->table('SiparisUrunleri as su')
+        $topMusterilerUrun = DB::connection('mysql')->table('SiparisUrunleri as su')
             ->join('Siparisler as s', 's.SiparisID', '=', 'su.SiparisID')
             ->select('s.Telefon', 's.AdiSoyadi', DB::raw('SUM(su.Miktar) as ToplamUrun'))
             ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
@@ -960,7 +960,7 @@ class SiparisController extends Controller
             ->get();
 
         // 3. En Çok Satılan Ürünler
-        $topUrunler = DB::connection('sqlsrv')->table('SiparisUrunleri as su')
+        $topUrunler = DB::connection('mysql')->table('SiparisUrunleri as su')
             ->join('Siparisler as s', 's.SiparisID', '=', 'su.SiparisID')
             ->select('su.StokKodu', 'su.UrunAdi', DB::raw('SUM(su.Miktar) as SatilanMiktar'))
             ->where('s.SiparisDurumu', '!=', 8)
@@ -972,13 +972,13 @@ class SiparisController extends Controller
             ->get();
 
         // 4. Müşteri Analizi (İlk Alım vs Tekrarlı Alım)
-        $totalUniqueCustomers = DB::connection('sqlsrv')->table('Siparisler')
+        $totalUniqueCustomers = DB::connection('mysql')->table('Siparisler')
             ->where('AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('SiparisDurumu', '!=', 8)
             ->distinct('Telefon')
             ->count('Telefon');
 
-        $repeatBuyersCount = DB::connection('sqlsrv')->table('Siparisler')
+        $repeatBuyersCount = DB::connection('mysql')->table('Siparisler')
             ->select('Telefon')
             ->where('AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('SiparisDurumu', '!=', 8)
@@ -1009,7 +1009,7 @@ class SiparisController extends Controller
 
         if ($allTime) {
             // 1. Tüm Zamanlar Satış Adetleri
-            $satislar = DB::connection('sqlsrv')->table('SiparisUrunleri as su')
+            $satislar = DB::connection('mysql')->table('SiparisUrunleri as su')
                 ->join('Siparisler as s', 's.SiparisID', '=', 'su.SiparisID')
                 ->selectRaw("
                     CAST(s.Tarih as DATE) as TarihRaw,
@@ -1023,7 +1023,7 @@ class SiparisController extends Controller
                 ->keyBy('TarihRaw');
 
             // 2. Tüm Zamanlar Kârlar
-            $karlar = DB::connection('sqlsrv')->table('SiparisKarlar as sk')
+            $karlar = DB::connection('mysql')->table('SiparisKarlar as sk')
                 ->join('Siparisler as s', 's.SiparisID', '=', 'sk.SiparisID')
                 ->selectRaw("
                     CAST(s.Tarih as DATE) as TarihRaw,
@@ -1054,7 +1054,7 @@ class SiparisController extends Controller
             $end = \Carbon\Carbon::createFromDate($yil, $ay, 1)->endOfMonth();
 
             // 1. Günlük Satış Adetleri
-            $satislar = DB::connection('sqlsrv')->table('SiparisUrunleri as su')
+            $satislar = DB::connection('mysql')->table('SiparisUrunleri as su')
                 ->join('Siparisler as s', 's.SiparisID', '=', 'su.SiparisID')
                 ->selectRaw("
                     CAST(s.Tarih as DATE) as TarihRaw,
@@ -1069,7 +1069,7 @@ class SiparisController extends Controller
                 ->keyBy('TarihRaw');
 
             // 2. Günlük Kârlar
-            $karlar = DB::connection('sqlsrv')->table('SiparisKarlar as sk')
+            $karlar = DB::connection('mysql')->table('SiparisKarlar as sk')
                 ->join('Siparisler as s', 's.SiparisID', '=', 'sk.SiparisID')
                 ->selectRaw("
                     CAST(s.Tarih as DATE) as TarihRaw,
@@ -1107,7 +1107,7 @@ class SiparisController extends Controller
     public function ekstraEkle(Request $request)
     {
         $request->validate([
-            'siparis_id'  => 'required|string|exists:sqlsrv.Siparisler,SiparisID',
+            'siparis_id'  => 'required|string|exists:mysql.Siparisler,SiparisID',
             'tur'         => 'required|in:GELIR,GIDER',
             'tutar'       => 'required|numeric|min:0',
             'para_birimi' => 'required|in:TL,USD',
@@ -1139,7 +1139,7 @@ class SiparisController extends Controller
             $tutar = $tlKarsiligi;
         }
 
-        DB::connection('sqlsrv')->table('SiparisEkstralar')->insert([
+        DB::connection('mysql')->table('SiparisEkstralar')->insert([
             'SiparisID' => $request->siparis_id,
             'Tur'       => $request->tur,
             'Tutar'     => $tutar,
@@ -1155,9 +1155,9 @@ class SiparisController extends Controller
 
     public function ekstraSil($id)
     {
-        $ekstra = DB::connection('sqlsrv')->table('SiparisEkstralar')->where('Id', $id)->first();
+        $ekstra = DB::connection('mysql')->table('SiparisEkstralar')->where('Id', $id)->first();
         if($ekstra) {
-            DB::connection('sqlsrv')->table('SiparisEkstralar')->where('Id', $id)->delete();
+            DB::connection('mysql')->table('SiparisEkstralar')->where('Id', $id)->delete();
             return back()->with('success', 'Ekstra işlem silindi.');
         }
         return back()->with('hata', 'Kayıt bulunamadı.');
@@ -1166,7 +1166,7 @@ class SiparisController extends Controller
     // 🟢 Sipariş Notları
     public function notlariGetir($id)
     {
-        $notlar = DB::connection('sqlsrv')->table('SiparisNotlari')
+        $notlar = DB::connection('mysql')->table('SiparisNotlari')
             ->select('ID', 'SiparisID', DB::raw('[Not]'), 'Tarih')->where('SiparisID', $id)
             ->orderBy('Tarih', 'desc')
             ->get();
@@ -1180,7 +1180,7 @@ class SiparisController extends Controller
             'not' => 'required|string|max:1000',
         ]);
 
-        DB::connection('sqlsrv')->table('SiparisNotlari')->insert([
+        DB::connection('mysql')->table('SiparisNotlari')->insert([
             'SiparisID' => $id,
             'Not' => $request->not,
             'Tarih' => now(),
@@ -1191,7 +1191,7 @@ class SiparisController extends Controller
 
     public function notSil($id, $notId)
     {
-        $not = DB::connection('sqlsrv')->table('SiparisNotlari')
+        $not = DB::connection('mysql')->table('SiparisNotlari')
             ->where('ID', $notId)
             ->where('SiparisID', $id)
             ->first();
@@ -1200,7 +1200,7 @@ class SiparisController extends Controller
             return back()->with('hata', 'Not bulunamadı.');
         }
 
-        DB::connection('sqlsrv')->table('SiparisNotlari')->where('ID', $notId)->delete();
+        DB::connection('mysql')->table('SiparisNotlari')->where('ID', $notId)->delete();
 
         return back()->with('success', 'Not başarıyla silindi.');
     }
@@ -1209,7 +1209,7 @@ class SiparisController extends Controller
  public function haritaVerileri(Request $request)
     {
         // 1. Sorguyu Hazırla
-        $query = DB::connection('sqlsrv')->table('Siparisler as s')
+        $query = DB::connection('mysql')->table('Siparisler as s')
             ->join('SiparisUrunleri as u', 's.SiparisID', '=', 'u.SiparisID')
             ->select(
                 's.Il',
@@ -1340,14 +1340,14 @@ class SiparisController extends Controller
     }
     public function toggleUSA($id)
     {
-        $order = DB::connection('sqlsrv')->table('Siparisler')->where('SiparisID', $id)->first();
+        $order = DB::connection('mysql')->table('Siparisler')->where('SiparisID', $id)->first();
         if (!$order) {
             return response()->json(['success' => false, 'message' => 'Sipariş bulunamadı.']);
         }
 
         $newState = $order->isUSA ? 0 : 1;
         
-        DB::connection('sqlsrv')->table('Siparisler')
+        DB::connection('mysql')->table('Siparisler')
             ->where('SiparisID', $id)
             ->update(['isUSA' => $newState]);
 
