@@ -33,11 +33,11 @@ class SiparisSyncService
     ];
 
     protected $validUrunColumns = [
-        'Id', 'SiparisID', 'UrunAdi', 'StokKodu', 'Miktar', 'BirimFiyat', 'Tutar', 'KdvTutari'
+        'SiparisID', 'UrunAdi', 'StokKodu', 'Miktar', 'BirimFiyat', 'Tutar', 'KdvTutari'
     ];
 
     protected $validFaturaColumns = [
-        'ID', 'SiparisID', 'FaturaAdresID', 'Adres', 'AliciTelefon', 'FirmaAdi', 
+        'SiparisID', 'FaturaAdresID', 'Adres', 'AliciTelefon', 'FirmaAdi', 
         'Il', 'IlId', 'IlKodu', 'Ilce', 'IlceId', 'IlceKodu', 'UlkeKodu', 
         'VergiDairesi', 'VergiNo', 'IsKurumsal'
     ];

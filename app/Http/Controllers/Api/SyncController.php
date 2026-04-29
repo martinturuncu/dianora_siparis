@@ -20,11 +20,11 @@ class SyncController extends Controller
     ];
 
     protected $validUrunColumns = [
-        'Id', 'SiparisID', 'UrunAdi', 'StokKodu', 'Miktar', 'BirimFiyat', 'Tutar', 'KdvTutari'
+        'SiparisID', 'UrunAdi', 'StokKodu', 'Miktar', 'BirimFiyat', 'Tutar', 'KdvTutari'
     ];
 
     protected $validFaturaColumns = [
-        'ID', 'SiparisID', 'FaturaAdresID', 'Adres', 'AliciTelefon', 'FirmaAdi', 
+        'SiparisID', 'FaturaAdresID', 'Adres', 'AliciTelefon', 'FirmaAdi', 
         'Il', 'IlId', 'IlKodu', 'Ilce', 'IlceId', 'IlceKodu', 'UlkeKodu', 
         'VergiDairesi', 'VergiNo', 'IsKurumsal'
     ];
@@ -64,6 +64,13 @@ class SyncController extends Controller
             $ordersUpserted = 0;
             $ordersData = $request->input('orders');
             
+            // TEMİZLİK: Gelen siparişlerin eski ürün ve fatura bilgilerini topluca sil
+            $incomingSiparisIDs = collect($ordersData)->pluck('SiparisID')->toArray();
+            if (!empty($incomingSiparisIDs)) {
+                DB::table('SiparisUrunleri')->whereIn('SiparisID', $incomingSiparisIDs)->delete();
+                DB::table('FaturaBilgisi')->whereIn('SiparisID', $incomingSiparisIDs)->delete();
+            }
+
             foreach ($ordersData as $orderData) {
                 // Safelist uygula
                 $cleanOrderData = \Illuminate\Support\Arr::only($orderData, $this->validSiparisColumns);
@@ -79,78 +86,28 @@ class SyncController extends Controller
             $itemsUpserted = 0;
             $itemsData = $request->input('order_items');
 
-            if ($driver === 'mysql') {
-                foreach ($itemsData as $itemData) {
-                    $cleanItemData = \Illuminate\Support\Arr::only($itemData, $this->validUrunColumns);
-                    if (isset($cleanItemData['Id'])) {
-                        $id = $cleanItemData['Id'];
-                        $updateItemData = \Illuminate\Support\Arr::except($cleanItemData, ['Id']);
-                        
-                        $exists = SiparisUrunleri::where('Id', $id)->exists();
-                        if ($exists) {
-                            SiparisUrunleri::where('Id', $id)->update($updateItemData);
-                        } else {
-                            $columns = array_keys($cleanItemData);
-                            $columnList = implode(', ', array_map(function($c) { return "`$c`"; }, $columns));
-                            $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-                            
-                            $sql = "
-                                
-                                INSERT INTO SiparisUrunleri ($columnList) VALUES ($placeholders);
-                                
-                            ";
-                            $connection->statement($sql, array_values($cleanItemData));
-                        }
-                        $itemsUpserted++;
-                    }
-                }
-            } else {
-                foreach ($itemsData as $itemData) {
-                    $cleanItemData = \Illuminate\Support\Arr::only($itemData, $this->validUrunColumns);
-                    if (isset($cleanItemData['Id'])) {
-                        SiparisUrunleri::updateOrInsert(['Id' => $cleanItemData['Id']], $cleanItemData);
-                        $itemsUpserted++;
-                    }
-                }
+            foreach ($itemsData as $itemData) {
+                $cleanItemData = \Illuminate\Support\Arr::only($itemData, $this->validUrunColumns);
+                
+                // ID'yi temizle (Remote'da yeni ID oluşsun)
+                if (isset($cleanItemData['Id'])) unset($cleanItemData['Id']);
+                
+                DB::table('SiparisUrunleri')->insert($cleanItemData);
+                $itemsUpserted++;
             }
 
             // FATURA BİLGİLERİNİ KAYDET
             $invoicesUpserted = 0;
             $invoicesData = $request->input('invoice_infos', []);
 
-            if ($driver === 'mysql') {
-                foreach ($invoicesData as $invoiceData) {
-                    $cleanInvoiceData = \Illuminate\Support\Arr::only($invoiceData, $this->validFaturaColumns);
-                    if (isset($cleanInvoiceData['ID'])) {
-                        $id = $cleanInvoiceData['ID'];
-                        $updateInvoiceData = \Illuminate\Support\Arr::except($cleanInvoiceData, ['ID']);
-
-                        $exists = DB::connection('mysql')->table('FaturaBilgisi')->where('ID', $id)->exists();
-                        if ($exists) {
-                             DB::connection('mysql')->table('FaturaBilgisi')->where('ID', $id)->update($updateInvoiceData);
-                        } else {
-                            $columns = array_keys($cleanInvoiceData);
-                            $columnList = implode(', ', array_map(function($c) { return "`$c`"; }, $columns));
-                            $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-                            
-                            $sql = "
-                                
-                                INSERT INTO FaturaBilgisi ($columnList) VALUES ($placeholders);
-                                
-                            ";
-                            $connection->statement($sql, array_values($cleanInvoiceData));
-                        }
-                        $invoicesUpserted++;
-                    }
-                }
-            } else {
-                foreach ($invoicesData as $invoiceData) {
-                    $cleanInvoiceData = \Illuminate\Support\Arr::only($invoiceData, $this->validFaturaColumns);
-                    if (isset($cleanInvoiceData['ID'])) {
-                        DB::connection('mysql')->table('FaturaBilgisi')->updateOrInsert(['ID' => $cleanInvoiceData['ID']], $cleanInvoiceData);
-                        $invoicesUpserted++;
-                    }
-                }
+            foreach ($invoicesData as $invoiceData) {
+                $cleanInvoiceData = \Illuminate\Support\Arr::only($invoiceData, $this->validFaturaColumns);
+                
+                // ID'yi temizle (Remote'da yeni ID oluşsun)
+                if (isset($cleanInvoiceData['ID'])) unset($cleanInvoiceData['ID']);
+                
+                DB::table('FaturaBilgisi')->insert($cleanInvoiceData);
+                $invoicesUpserted++;
             }
 
             $connection->commit();
@@ -160,7 +117,6 @@ class SyncController extends Controller
                 'orders_processed' => $ordersUpserted,
                 'items_processed' => $itemsUpserted,
                 'invoices_processed' => $invoicesUpserted,
-                'debug_first_order_keys' => count($ordersData) > 0 ? array_keys((array)$ordersData[0]) : 'empty',
                 'debug_data_count' => count($ordersData)
             ]);
 
