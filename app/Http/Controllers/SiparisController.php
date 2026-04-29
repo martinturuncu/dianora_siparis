@@ -698,14 +698,15 @@ class SiparisController extends Controller
             ->where('SiparisUrunleri.StokKodu', 'LIKE', '%hediye%')
             ->sum('SiparisUrunleri.Miktar');
 
-        // C) Günlük Kâr (İptaller Dahil - Zarar yansıması için)
-        // DÜZELTME: Kullanıcı isteği üzerine iptal/iadeler kâr hesabından ÇIKARILIYOR.
+        // C) Günlük Kâr (İptaller Hariç, Hediye Olmayan Ürünler)
+        // Hediye olmayan ürünlerin kârını topla (TOPLAM satırı yerine bireysel satırları)
         $gunlukKar = DB::connection('mysql')->table('SiparisKarlar')
             ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
             ->whereDate('Siparisler.Tarih', $tarih)
-            ->whereNotIn('Siparisler.SiparisDurumu', [8, 9]) 
-            ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
-            ->where('SiparisKarlar.UrunKodu', 'TOPLAM') // 🔥 SADECE TOPLAM SATIRINI AL
+            ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
+            ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
+            ->where('SiparisKarlar.UrunKodu', 'NOT LIKE', '%hediye%') // Hediye olmayan ürünleri al
+            ->where('SiparisKarlar.UrunKodu', '!=', 'TOPLAM') // TOPLAM satırını hariç tut (bireysel satırları topla)
             ->sum('SiparisKarlar.GercekKar');
 
         // D) Günlük Ciro (Sadece İptal Olmayanlar)
@@ -792,13 +793,14 @@ class SiparisController extends Controller
                 ->where('SiparisUrunleri.StokKodu', 'LIKE', '%hediye%')
                 ->sum('SiparisUrunleri.Miktar');
 
-            // C) Aralık Kâr (İptaller Dahil -> HAYIR, ARTIK HARİÇ)
+            // C) Aralık Kâr (İptaller Hariç, Hediye Olmayan Ürünler)
             $aralikKar = DB::connection('mysql')->table('SiparisKarlar')
                 ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
-                ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
-                ->where('SiparisKarlar.UrunKodu', 'TOPLAM') 
+                ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
+                ->where('SiparisKarlar.UrunKodu', 'NOT LIKE', '%hediye%') // Hediye olmayan ürünleri al
+                ->where('SiparisKarlar.UrunKodu', '!=', 'TOPLAM') // TOPLAM satırını hariç tut (bireysel satırları topla)
                 ->sum('SiparisKarlar.GercekKar');
             
             // D) Aralık Ciro (Aktifler)
@@ -875,7 +877,7 @@ class SiparisController extends Controller
                 ->get()
                 ->keyBy('TarihOzel');
 
-            // 2. Kârlar (İptaller Dahil -> HAYIR, HARİÇ)
+            // 2. Kârlar (İptaller Hariç, Hediye Hariç) - Satış Adetleri ile tutarlı olmalı
             $karlar = DB::connection('mysql')->table('SiparisKarlar')
                 ->join('Siparisler', 'SiparisKarlar.SiparisID', '=', 'Siparisler.SiparisID')
                 ->selectRaw("
@@ -885,7 +887,8 @@ class SiparisController extends Controller
                 ->where('Siparisler.Tarih', '>=', now()->subDays(15)->startOfDay())
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
-                ->where('SiparisKarlar.UrunKodu', 'TOPLAM')
+                ->where('SiparisKarlar.UrunKodu', 'NOT LIKE', '%hediye%') // Satış ile tutarlı: hediye hariç
+                ->where('SiparisKarlar.UrunKodu', '!=', 'TOPLAM') // Ama TOPLAM satırını alma, bireysel satırları topla
                 ->groupByRaw("DATE_FORMAT(Siparisler.Tarih, '%d.%m.%Y')")
                 ->get()
                 ->keyBy('TarihOzel');
