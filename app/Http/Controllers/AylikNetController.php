@@ -102,6 +102,9 @@ class AylikNetController extends Controller
 
             // Ciro ve Satış Adedi (Miktar)
             foreach ($sipUrunler as $su) {
+                // İptal edilmiş ürünleri atla
+                if (($su->Durum ?? 0) == 1) continue;
+
                 // Hediye Ayrıştırma
                 $isHediye = false;
                 foreach ($hediyeKodlari as $hk) {
@@ -131,8 +134,8 @@ class AylikNetController extends Controller
             $birimReklam = $gecerliAyar->reklam ?? 0;
             $birimIscilik = $gecerliAyar->iscilik ?? 0; // İşçilik maliyeti
 
-            // Toplam Miktar * Birim Reklam
-            $toplamMiktar = $sipUrunler->sum('Miktar');
+            // Toplam Miktar * Birim Reklam (iptal ürünleri hariç tut)
+            $toplamMiktar = $sipUrunler->filter(fn($u) => ($u->Durum ?? 0) == 0)->sum('Miktar');
             $veriler[$key]['reklam_payi'] += ($birimReklam * $toplamMiktar);
             
             // İşçilik Payı (Gider/Gelir gösterimi için)

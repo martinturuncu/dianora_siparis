@@ -879,6 +879,7 @@ class SiparisController extends Controller
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9]) // İptaller ve İadeler satış adedine girmez
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('SiparisUrunleri.StokKodu', 'NOT LIKE', '%hediye%')
+                ->where('SiparisUrunleri.Durum', 0)
                 ->groupByRaw("DATE_FORMAT(Siparisler.Tarih, '%d.%m.%Y'), CAST(Siparisler.Tarih as DATE)")
                 ->get()
                 ->keyBy('TarihOzel');
@@ -961,6 +962,7 @@ class SiparisController extends Controller
             ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('s.SiparisDurumu', '!=', 8)
             ->where('su.StokKodu', 'NOT LIKE', '%hediye%')
+            ->where('su.Durum', 0)
             ->groupBy('s.Telefon', 's.AdiSoyadi')
             ->orderByDesc('ToplamUrun')
             ->take(10)
@@ -973,6 +975,7 @@ class SiparisController extends Controller
             ->where('s.SiparisDurumu', '!=', 8)
             ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('su.StokKodu', 'NOT LIKE', '%hediye%')
+            ->where('su.Durum', 0)
             ->groupBy('su.StokKodu', 'su.UrunAdi')
             ->orderByDesc('SatilanMiktar')
             ->take(10)
@@ -1025,6 +1028,7 @@ class SiparisController extends Controller
                 ->whereNotIn('s.SiparisDurumu', [8, 9])
                 ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('su.StokKodu', 'NOT LIKE', '%hediye%')
+                ->where('su.Durum', 0)
                 ->groupByRaw("CAST(s.Tarih as DATE)")
                 ->get()
                 ->keyBy('TarihRaw');
@@ -1071,6 +1075,7 @@ class SiparisController extends Controller
                 ->whereNotIn('s.SiparisDurumu', [8, 9])
                 ->where('s.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('su.StokKodu', 'NOT LIKE', '%hediye%')
+                ->where('su.Durum', 0)
                 ->groupByRaw("CAST(s.Tarih as DATE)")
                 ->get()
                 ->keyBy('TarihRaw');
@@ -1224,7 +1229,8 @@ class SiparisController extends Controller
                 DB::raw('SUM(u.Miktar) as ToplamUrun')
             )
             ->whereNotIn('s.SiparisDurumu', [8, 9]) // İptal ve İade olmayanlar
-            ->where('s.AdiSoyadi', '!=', 'Dianora Piercing'); // Özel filtre
+            ->where('s.AdiSoyadi', '!=', 'Dianora Piercing') // Özel filtre
+            ->where('u.Durum', 0); // Ürün bazında iptal edilenleri hariç tut
 
         // 2. Tarih Filtresi (Eğer tarih seçildiyse)
         if ($request->filled('baslangic') && $request->filled('bitis')) {
