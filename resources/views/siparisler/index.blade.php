@@ -228,20 +228,22 @@
                     $anaSiparis = $urunler->first();
                     $hediyeCeki = $anaSiparis->HediyeCekiTutari ?? 0;
                     $odemeIndirimi = $anaSiparis->odemeIndirimi ?? 0;
+                    // İptal edilen ürünleri hariç tut
+                    $aktifUrunlerIndex = $urunler->filter(fn($u) => ($u->Durum ?? 0) == 0);
                     // Müşteri: "Sadece site (ID:1) miktar ile çarpılmalı, diğerlerinde çarpılmayacak"
                     // Müşteri (Etsy Update): is_manuel=0 ise Birim*Miktar, is_manuel=1 ise Toplam
                     if ($anaSiparis->PazaryeriID == 1) {
-                         $toplamTutar = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar) - $hediyeCeki - $odemeIndirimi;
+                         $toplamTutar = $aktifUrunlerIndex->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar) - $hediyeCeki - $odemeIndirimi;
                     } 
                     elseif ($anaSiparis->PazaryeriID == 3) {
                          if ((int)($anaSiparis->is_manuel ?? 0) === 0) {
-                              $toplamTutar = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar) - $hediyeCeki - $odemeIndirimi;
+                              $toplamTutar = $aktifUrunlerIndex->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar) - $hediyeCeki - $odemeIndirimi;
                          } else {
-                              $toplamTutar = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari)) - $hediyeCeki - $odemeIndirimi;
+                              $toplamTutar = $aktifUrunlerIndex->sum(fn($u) => ($u->Tutar + $u->KdvTutari)) - $hediyeCeki - $odemeIndirimi;
                          }
                     }
                     else {
-                         $toplamTutar = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari)) - $hediyeCeki - $odemeIndirimi;
+                         $toplamTutar = $aktifUrunlerIndex->sum(fn($u) => ($u->Tutar + $u->KdvTutari)) - $hediyeCeki - $odemeIndirimi;
                     }
                     // Yeni mantık: SiparisKar artık direkt veritabanından geliyor ve hediye çeki düşülmüş net tutar.
                     $toplamKar = $anaSiparis->SiparisKar ?? 0;
@@ -371,7 +373,7 @@
 
                         {{-- 3. ORTA: Adet --}}
                         <div class="col-6 col-lg-2 text-center text-secondary small fw-semibold">
-                            <i class="fa-solid fa-layer-group text-muted opacity-75 me-1"></i> {{ $urunler->sum('Miktar') }} Ürün
+                            <i class="fa-solid fa-layer-group text-muted opacity-75 me-1"></i> {{ $aktifUrunlerIndex->sum('Miktar') }} Ürün
                         </div>
 
                         {{-- 4. SAĞ: Tutar --}}
@@ -458,13 +460,17 @@
                         <table class="table table-borderless table-sm mb-0">
                             <tbody>
                                 @foreach($urunler as $urun)
-                                    <tr class="align-middle">
+                                    @php $isUrunIptal = ($urun->Durum ?? 0) == 1; @endphp
+                                    <tr class="align-middle" style="{{ $isUrunIptal ? 'opacity: 0.4;' : '' }}">
                                         <td class="ps-5 ps-lg-5 py-2" style="width: 50%;">
                                             <div class="d-flex align-items-center gap-3">
                                                 <i class="fa-solid fa-turn-up fa-rotate-90 text-muted opacity-25 ms-lg-3"></i>
                                                 <div>
-                                                    <div class="fw-semibold text-dark small d-flex align-items-center gap-2">
+                                                    <div class="fw-semibold text-dark small d-flex align-items-center gap-2" style="{{ $isUrunIptal ? 'text-decoration: line-through;' : '' }}">
                                                         {{ $urun->UrunAdi }}
+                                                        @if($isUrunIptal)
+                                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill px-2" style="font-size: 0.6rem; text-decoration: none;">İPTAL</span>
+                                                        @endif
                                                         @php
                                                             $isProductHediye = false;
                                                             foreach ($hediyeKodlari as $hk) {

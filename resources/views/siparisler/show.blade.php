@@ -57,19 +57,21 @@
     // Ancak daha önce Etsy için satır toplamı sanılmıştı. Kullanıcı geri bildirimi ile düzeltildi.
     // Müşteri: "Sadece site (ID:1) miktar ile çarpılmalı"
     // Müşteri (Etsy Update): is_manuel=0 ise Birim*Miktar, is_manuel=1 ise Toplam
+    // İptal edilen ürünleri hariç tut
+    $aktifUrunler = $urunler->filter(fn($u) => ($u->Durum ?? 0) == 0);
     if ($siparis->PazaryeriID == 1) {
-         $toplamUrunTutari = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar);
+         $toplamUrunTutari = $aktifUrunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar);
     } 
     elseif ($siparis->PazaryeriID == 3) {
          if ((int)($siparis->is_manuel ?? 0) === 0) {
-              $toplamUrunTutari = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar);
+              $toplamUrunTutari = $aktifUrunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari) * $u->Miktar);
          } else {
-              $toplamUrunTutari = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari));
+              $toplamUrunTutari = $aktifUrunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari));
          }
     }
     else {
         // Diğerleri (Hipicon vb) için Tutar satır toplamıdır
-        $toplamUrunTutari = $urunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari));
+        $toplamUrunTutari = $aktifUrunler->sum(fn($u) => ($u->Tutar + $u->KdvTutari));
     }
     // $toplamKar controller'dan geliyor artık
     
@@ -374,7 +376,16 @@
                     <div class="card-header bg-card border-bottom py-4 px-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <h5 class="fw-bold text-dark mb-0">Ürünler</h5>
-                            <span class="badge bg-dark rounded-pill px-3">{{ $urunler->sum('Miktar') }} Adet</span>
+                            @php
+                                $aktifUrunSayisi = $urunler->filter(fn($u) => ($u->Durum ?? 0) == 0)->sum('Miktar');
+                                $iptalUrunSayisi = $urunler->filter(fn($u) => ($u->Durum ?? 0) == 1)->count();
+                            @endphp
+                            <div class="d-flex align-items-center gap-2">
+                                @if($iptalUrunSayisi > 0)
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill px-3">{{ $iptalUrunSayisi }} İptal</span>
+                                @endif
+                                <span class="badge bg-dark rounded-pill px-3">{{ $aktifUrunSayisi }} Adet</span>
+                            </div>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -392,10 +403,18 @@
                             </thead>
                             <tbody>
                                 @foreach($urunler as $u)
-                                    <tr>
+                                    @php $isIptal = ($u->Durum ?? 0) == 1; @endphp
+                                    <tr style="{{ $isIptal ? 'opacity: 0.4;' : '' }}">
                                         <td class="ps-4">
                                             <div>
-                                                <div class="fw-bold text-dark">{{ $u->UrunAdi }}</div>
+                                                <div class="fw-bold text-dark d-flex align-items-center gap-2" style="{{ $isIptal ? 'text-decoration: line-through;' : '' }}">
+                                                    {{ $u->UrunAdi }}
+                                                    @if($isIptal)
+                                                        <span class="badge bg-danger bg-opacity-15 text-danger border border-danger-subtle rounded-pill px-2 py-1" style="font-size: 0.65rem; text-decoration: none;">
+                                                            <i class="fa-solid fa-ban me-1"></i>İPTAL
+                                                        </span>
+                                                    @endif
+                                                </div>
                                                 <div class="small text-muted font-monospace mt-1">{{ $u->StokKodu }}</div>
                                             </div>
                                         </td>
@@ -413,6 +432,8 @@
                                                 <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                     <i class="fa-solid fa-gift me-1"></i>Hediye
                                                 </span>
+                                            @elseif($isIptal)
+                                                <div class="text-muted small" style="text-decoration: line-through;">{{ number_format(($u->Tutar + $u->KdvTutari), 2, ',', '.') }} ₺</div>
                                             @else
                                                 <div class="fw-bold text-dark price-text">{{ number_format(($u->Tutar + $u->KdvTutari), 2, ',', '.') }} ₺</div>
                                                 @if($siparis->PazaryeriID == 3)
@@ -439,7 +460,9 @@
                                             @endif
                                         </td>
                                         <td class="text-end">
-                                            @if($u->isHediye ?? false)
+                                            @if($isIptal)
+                                                <div class="text-muted">-</div>
+                                            @elseif($u->isHediye ?? false)
                                                 <div class="text-muted">-</div>
                                             @elseif(isset($u->detay['toplamMaliyet']))
                                                 {{-- Maliyet hala gösterilebilir, ancak kâr artık sipariş bazlı --}}
@@ -454,15 +477,37 @@
                                                 <i class="fa-solid fa-calculator text-secondary opacity-25" title="Sipariş Toplamında Hesaplanır"></i>
                                             </div>
                                         </td>
-                                        <td class="text-end pe-4" style="width: 50px;">
-                                            <a href="/urun-detay/{{ $siparis->SiparisID }}/{{ $u->StokKodu }}" class="btn btn-white btn-sm border shadow-sm text-primary rounded-circle w-30px h-30px d-inline-flex align-items-center justify-content-center" title="Ürün İncele">
-                                                <i class="fa-solid fa-eye small"></i>
-                                            </a>
+                                        <td class="text-end pe-4" style="width: 80px;">
+                                            <div class="d-flex align-items-center gap-1 justify-content-end">
+                                                <a href="/urun-detay/{{ $siparis->SiparisID }}/{{ $u->StokKodu }}" class="btn btn-white btn-sm border shadow-sm text-primary rounded-circle w-30px h-30px d-inline-flex align-items-center justify-content-center" title="Ürün İncele">
+                                                    <i class="fa-solid fa-eye small"></i>
+                                                </a>
+                                                @if($isIptal)
+                                                    {{-- Geri Al Butonu --}}
+                                                    <form action="{{ route('siparis.urunIptalGeriAl', [$siparis->SiparisID, $u->Id]) }}" method="POST" onsubmit="return confirm('Ürün iptali geri alınsın mı?')" style="text-decoration: none;">
+                                                        @csrf
+                                                        <button class="btn btn-white btn-sm border shadow-sm text-success rounded-circle w-30px h-30px d-inline-flex align-items-center justify-content-center" title="İptali Geri Al">
+                                                            <i class="fa-solid fa-rotate-left small"></i>
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    {{-- İptal Butonu --}}
+                                                    @if(!($u->isHediye ?? false))
+                                                    <form action="{{ route('siparis.urunIptal', [$siparis->SiparisID, $u->Id]) }}" method="POST" onsubmit="return confirm('Bu ürünü iptal etmek istediğinize emin misiniz?')" style="text-decoration: none;">
+                                                        @csrf
+                                                        <button class="btn btn-white btn-sm border shadow-sm text-danger rounded-circle w-30px h-30px d-inline-flex align-items-center justify-content-center" title="Ürünü İptal Et">
+                                                            <i class="fa-solid fa-xmark small"></i>
+                                                        </button>
+                                                    </form>
+                                                    @endif
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
+
                     </div>
                 </div>
                 

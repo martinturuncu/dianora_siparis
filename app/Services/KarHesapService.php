@@ -492,6 +492,9 @@ class KarHesapService
 
         // 5. Ürünleri Döngüyle Topla
         foreach ($urunler as $u) {
+            // İptal edilmiş ürünleri atla
+            if (($u->Durum ?? 0) == 1) continue;
+            
             if ($this->isHediye($u->StokKodu, $ayar)) continue;
 
             $miktar = $u->Miktar;

@@ -81,6 +81,9 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::post('/siparisler/{id}/not-ekle', [SiparisController::class, 'notEkle'])->name('siparis.not.ekle');
     Route::delete('/siparisler/{id}/not-sil/{notId}', [SiparisController::class, 'notSil'])->name('siparis.not.sil');
 
+    // Ürün Bazlı İptal/Geri Al
+    Route::post('/siparisler/{id}/urun-iptal/{urunId}', [SiparisController::class, 'urunIptalEt'])->name('siparis.urunIptal');
+    Route::post('/siparisler/{id}/urun-iptal-geri/{urunId}', [SiparisController::class, 'urunIptalGeriAl'])->name('siparis.urunIptalGeriAl');
 
     // --- Aylık Net Kazanç ---
     Route::get('/aylik-net', [App\Http\Controllers\AylikNetController::class, 'index'])->name('aylik_net.index');

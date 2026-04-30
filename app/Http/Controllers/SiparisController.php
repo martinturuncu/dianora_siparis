@@ -156,6 +156,7 @@ class SiparisController extends Controller
                 
                 u.UrunAdi,
                 u.StokKodu, 
+                u.Durum AS Durum,
                 k.KategoriAdi AS UrunKategori,
                 ur.Gram AS UrunGram,
                 u.Miktar, 
@@ -687,6 +688,7 @@ class SiparisController extends Controller
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
             ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('SiparisUrunleri.StokKodu', 'NOT LIKE', '%hediye%')
+            ->where('SiparisUrunleri.Durum', 0)
             ->sum('SiparisUrunleri.Miktar');
 
         // B2) Hediye Ürün Sayısı
@@ -696,6 +698,7 @@ class SiparisController extends Controller
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
             ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
             ->where('SiparisUrunleri.StokKodu', 'LIKE', '%hediye%')
+            ->where('SiparisUrunleri.Durum', 0)
             ->sum('SiparisUrunleri.Miktar');
 
         // C) Günlük Kâr (İptaller Hariç)
@@ -712,7 +715,8 @@ class SiparisController extends Controller
             ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
             ->whereDate('Siparisler.Tarih', $tarih)
             ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
-            ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
+            ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
+            ->where('SiparisUrunleri.Durum', 0)
             ->selectRaw('SUM( (IFNULL(SiparisUrunleri.Tutar, 0) + IFNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
             ->value('ciro');
 
@@ -739,6 +743,7 @@ class SiparisController extends Controller
             AND s.SiparisDurumu NOT IN (8, 9)
             AND s.AdiSoyadi != 'Dianora Piercing'
             AND u.StokKodu NOT LIKE '%hediye%'
+            AND u.Durum = 0
         ", [$tarih]);
         
         $gunlukReklamGideri = $gunlukReklamGideri[0]->ToplamReklam ?? 0;
@@ -780,6 +785,7 @@ class SiparisController extends Controller
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('SiparisUrunleri.StokKodu', 'NOT LIKE', '%hediye%')
+                ->where('SiparisUrunleri.Durum', 0)
                 ->sum('SiparisUrunleri.Miktar');
 
             // B2) Aralık Hediye Sayısı
@@ -789,6 +795,7 @@ class SiparisController extends Controller
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
                 ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
                 ->where('SiparisUrunleri.StokKodu', 'LIKE', '%hediye%')
+                ->where('SiparisUrunleri.Durum', 0)
                 ->sum('SiparisUrunleri.Miktar');
 
             // C) Aralık Kâr (İptaller Hariç)
@@ -805,7 +812,8 @@ class SiparisController extends Controller
                 ->join('Siparisler', 'SiparisUrunleri.SiparisID', '=', 'Siparisler.SiparisID')
                 ->whereBetween('Siparisler.Tarih', [$start, $end])
                 ->whereNotIn('Siparisler.SiparisDurumu', [8, 9])
-                ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing') 
+                ->where('Siparisler.AdiSoyadi', '!=', 'Dianora Piercing')
+                ->where('SiparisUrunleri.Durum', 0)
                 ->selectRaw('SUM( (IFNULL(SiparisUrunleri.Tutar, 0) + IFNULL(SiparisUrunleri.KdvTutari, 0)) * SiparisUrunleri.Miktar ) AS ciro')
                 ->value('ciro');
 
@@ -832,6 +840,7 @@ class SiparisController extends Controller
                 AND s.SiparisDurumu NOT IN (8, 9)
                 AND s.AdiSoyadi != 'Dianora Piercing'
                 AND u.StokKodu NOT LIKE '%hediye%'
+                AND u.Durum = 0
             ", [$start, $end]);
 
             $aralikReklamGideri = $aralikReklamQuery[0]->ToplamReklam ?? 0;
@@ -1354,6 +1363,66 @@ class SiparisController extends Controller
             'newState' => $newState,
             'message' => $newState ? 'Amerika siparişi olarak işaretlendi.' : 'Amerika işareti kaldırıldı.'
         ]);
+    }
+
+    // 🟢 Ürün Bazlı İptal
+    public function urunIptalEt($siparisId, $urunId)
+    {
+        $urun = DB::connection('mysql')->table('SiparisUrunleri')
+            ->where('Id', $urunId)
+            ->where('SiparisID', $siparisId)
+            ->first();
+
+        if (!$urun) {
+            return back()->with('hata', 'Ürün bulunamadı.');
+        }
+
+        if (($urun->Durum ?? 0) == 1) {
+            return back()->with('hata', 'Bu ürün zaten iptal edilmiş.');
+        }
+
+        DB::connection('mysql')->table('SiparisUrunleri')
+            ->where('Id', $urunId)
+            ->update(['Durum' => 1]);
+
+        // Sistem notu ekle
+        DB::connection('mysql')->table('SiparisNotlari')->insert([
+            'SiparisID' => $siparisId,
+            'Not' => 'SİSTEM: Ürün iptal edildi → ' . $urun->UrunAdi . ' (' . $urun->StokKodu . ')',
+            'Tarih' => now(),
+        ]);
+
+        return back()->with('success', 'Ürün iptal edildi: ' . $urun->UrunAdi);
+    }
+
+    // 🟢 Ürün İptal Geri Alma
+    public function urunIptalGeriAl($siparisId, $urunId)
+    {
+        $urun = DB::connection('mysql')->table('SiparisUrunleri')
+            ->where('Id', $urunId)
+            ->where('SiparisID', $siparisId)
+            ->first();
+
+        if (!$urun) {
+            return back()->with('hata', 'Ürün bulunamadı.');
+        }
+
+        if (($urun->Durum ?? 0) == 0) {
+            return back()->with('hata', 'Bu ürün zaten aktif.');
+        }
+
+        DB::connection('mysql')->table('SiparisUrunleri')
+            ->where('Id', $urunId)
+            ->update(['Durum' => 0]);
+
+        // Sistem notu ekle
+        DB::connection('mysql')->table('SiparisNotlari')->insert([
+            'SiparisID' => $siparisId,
+            'Not' => 'SİSTEM: Ürün iptali geri alındı → ' . $urun->UrunAdi . ' (' . $urun->StokKodu . ')',
+            'Tarih' => now(),
+        ]);
+
+        return back()->with('success', 'Ürün iptali geri alındı: ' . $urun->UrunAdi);
     }
 }
 
