@@ -136,7 +136,7 @@ class SiparisEntegrasyonController extends Controller
                     $email = $s->Mail ?? ($s->Email ?? "");
 
                     // Ödeme Tipi ve Detay Mantığı
-                    $odemeBilgisi = $this->odemeBilgisiCozumle($s->Odemeler ?? []);
+                    $odemeBilgisi = $this->odemeBilgisiCozumle($s->Odemeler ?? null);
                     $odemeTipi = $odemeBilgisi['tip'];
                     $odemeDetay = $odemeBilgisi['detay'];
 
@@ -415,54 +415,72 @@ class SiparisEntegrasyonController extends Controller
 
     private function odemeBilgisiCozumle($odemeler)
     {
-        // Odemeler bazen array, bazen tek obje, bazen null gelir. Standartlaştıralım.
         if (empty($odemeler)) return ['tip' => 0, 'detay' => ''];
+
+        // Ticimax SOAP yapısı: Odemeler -> stdClass -> WebSiparisOdeme (obj veya array)
+        if (is_object($odemeler)) {
+            if (isset($odemeler->stdClass->WebSiparisOdeme)) {
+                $odemeler = $odemeler->stdClass->WebSiparisOdeme;
+            } elseif (isset($odemeler->WebSiparisOdeme)) {
+                $odemeler = $odemeler->WebSiparisOdeme;
+            }
+        }
+
         if (!is_array($odemeler)) $odemeler = [$odemeler];
+        if (empty($odemeler)) return ['tip' => 0, 'detay' => ''];
 
         $seciliOdeme = null;
 
-        // 1. Kural: "Havale" geçen ödeme
+        // 1. Kural: Havale (OdemeTipi=1 ya da HavaleBankaID dolu)
         foreach ($odemeler as $o) {
-            $tip = $o->OdemeTipleri->OdemeTipiAciklamasi ?? ($o->OdemeTipiAciklamasi ?? "");
-            if (stripos($tip, 'havale') !== false) {
+            if ((isset($o->OdemeTipi) && (int)$o->OdemeTipi === 1)
+                || (!empty($o->HavaleBankaID) && (int)$o->HavaleBankaID > 0)) {
                 $seciliOdeme = $o;
                 break;
             }
         }
 
-        // 2. Kural: Onaylı/Başarılı Olan
+        // 2. Kural: Onaylanmış olan
         if (!$seciliOdeme) {
             foreach ($odemeler as $o) {
-                $durumAciklama = $o->DurumAciklama ?? ($o->OdemeDurumuAciklama ?? "");
-                $durumId = $o->DurumId ?? ($o->OdemeDurumu ?? 0);
-                
-                if (stripos($durumAciklama, 'onay') !== false || 
-                    stripos($durumAciklama, 'basar') !== false || 
-                    stripos($durumAciklama, 'başar') !== false || 
-                    $durumId == 1) 
-                {
+                if (isset($o->Onaylandi) && (int)$o->Onaylandi === 1) {
                     $seciliOdeme = $o;
                     break;
                 }
             }
         }
 
-        // 3. Kural: En son tarihli (Varsayılan olarak sonuncuyu alıyoruz)
-        if (!$seciliOdeme && count($odemeler) > 0) {
-            // Ticimax genelde eskiden yeniye veya tam tersi döndürür, 
-            // garanti olsun diye array'in ilk elemanını alalım (veya sort edilebilir)
-            $seciliOdeme = $odemeler[0];
+        // 3. Fallback: ilk eleman
+        if (!$seciliOdeme) {
+            $seciliOdeme = reset($odemeler);
         }
 
-        if ($seciliOdeme) {
-            $tipIsmi = $seciliOdeme->OdemeTipleri->OdemeTipiAciklamasi ?? "";
-            $not = $seciliOdeme->OdemeNotu ?? "";
-            return [
-                'tip'   => $seciliOdeme->OdemeTipi ?? 0,
-                'detay' => trim("$tipIsmi $not")
-            ];
+        if (!$seciliOdeme) return ['tip' => 0, 'detay' => ''];
+
+        $tip = isset($seciliOdeme->OdemeTipi) ? (int)$seciliOdeme->OdemeTipi : 0;
+        $tipAdi = $this->odemeTipiAdi($seciliOdeme, $tip);
+        $not = $seciliOdeme->OdemeNotu ?? "";
+
+        return [
+            'tip'   => $tip,
+            'detay' => trim($tipAdi . ($not ? " - $not" : "")),
+        ];
+    }
+
+    private function odemeTipiAdi($odeme, int $tip): string
+    {
+        // Ticimax standart kodları
+        if ($tip === 1) return 'Havale/EFT';
+        if ($tip === 2) return 'Kredi Kartı';
+        if ($tip === 3) return 'Kapıda Ödeme';
+
+        // Diğer tipler için field bazlı tahmin
+        if (!empty($odeme->HavaleBankaID) && (int)$odeme->HavaleBankaID > 0) return 'Havale/EFT';
+        if (!empty($odeme->KapidaOdemeTutari) && (float)$odeme->KapidaOdemeTutari > 0) return 'Kapıda Ödeme';
+        if (!empty($odeme->PosReferansID) || (!empty($odeme->KKOdemeBankaID) && (int)$odeme->KKOdemeBankaID > 0)) {
+            return 'Kredi Kartı';
         }
 
-        return ['tip' => 0, 'detay' => ''];
+        return "Ödeme Tipi $tip";
     }
 }
