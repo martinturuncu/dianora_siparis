@@ -283,7 +283,7 @@ class SiparisSyncService
             $items = $data['items'] ?? [];
 
             \Illuminate\Support\Facades\DB::connection('mysql')->transaction(function () use ($items) {
-                \Illuminate\Support\Facades\DB::connection('mysql')->table('real_grams')->truncate();
+                \Illuminate\Support\Facades\DB::connection('mysql')->table('real_grams')->delete();
 
                 if (empty($items)) {
                     return;
