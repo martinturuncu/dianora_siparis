@@ -70,6 +70,7 @@ Route::middleware(['admin.auth'])->group(function () {
          ->name('siparis.guncelleVeKar');
 
     Route::get('/siparis-senkronize-et', [SiparisController::class, 'sync'])->name('siparis.sync');
+    Route::get('/real-grams-senkronize-et', [SiparisController::class, 'syncRealGrams'])->name('real_grams.sync');
 
     // Manuel sipariş durumunu güncelleme rotası
     Route::post('/siparisler/durum-guncelle/{id}', [SiparisController::class, 'durumGuncelle'])->name('siparis.durumGuncelle');

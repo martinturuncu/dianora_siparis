@@ -11,4 +11,5 @@ use App\Http\Controllers\Api\SyncController;
 Route::prefix('sync')->group(function () {
     Route::post('/upload', [SyncController::class, 'upload']);
     Route::get('/download', [SyncController::class, 'download']);
+    Route::get('/real-grams', [SyncController::class, 'realGramsDownload']);
 });

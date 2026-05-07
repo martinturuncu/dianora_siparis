@@ -59,6 +59,40 @@ class SiparisController extends Controller
         }
     }
 
+    /**
+     * morfingen.info'dan real_grams tablosunu çeker (manuel tetik).
+     */
+    public function syncRealGrams(\App\Services\SiparisSyncService $syncService)
+    {
+        try {
+            $result = $syncService->pullRealGrams();
+            $hasError = \Illuminate\Support\Str::startsWith($result, 'Hata:');
+
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => !$hasError,
+                    'message' => $result,
+                ], $hasError ? 422 : 200);
+            }
+
+            return $hasError
+                ? back()->with('hata', $result)
+                : back()->with('success', $result);
+
+        } catch (\Exception $e) {
+            $errorMessage = 'Real Gram Senkronizasyon Hatası: ' . $e->getMessage();
+
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 500);
+            }
+
+            return back()->with('hata', $errorMessage);
+        }
+    }
+
     public function index(Request $request)
     {
         $search = $request->input('search');

@@ -263,6 +263,56 @@ class SiparisSyncService
         }
     }
 
+    /**
+     * morfingen.info'dan real_grams tablosunu tamamen çeker (full refresh).
+     */
+    public function pullRealGrams()
+    {
+        try {
+            $response = Http::timeout(60)->withHeaders([
+                'X-Sync-Token' => $this->token,
+                'Accept' => 'application/json',
+            ])->get($this->remoteUrl . '/api/sync/real-grams');
+
+            if (!$response->successful()) {
+                Log::error('RealGrams Pull Failed: ' . $response->body());
+                return "Hata: Uzak sunucu yanıtı başarısız. Kod: " . $response->status();
+            }
+
+            $data = $response->json();
+            $items = $data['items'] ?? [];
+
+            \Illuminate\Support\Facades\DB::connection('mysql')->transaction(function () use ($items) {
+                \Illuminate\Support\Facades\DB::connection('mysql')->table('real_grams')->truncate();
+
+                if (empty($items)) {
+                    return;
+                }
+
+                $rows = array_map(function ($item) {
+                    return [
+                        'siparis_id' => isset($item['siparis_id']) ? (string) $item['siparis_id'] : null,
+                        'real_gram'  => $item['real_gram'] ?? null,
+                    ];
+                }, $items);
+
+                $rows = array_values(array_filter($rows, function ($r) {
+                    return !empty($r['siparis_id']);
+                }));
+
+                foreach (array_chunk($rows, 1000) as $chunk) {
+                    \Illuminate\Support\Facades\DB::connection('mysql')->table('real_grams')->insert($chunk);
+                }
+            });
+
+            return "Başarılı: " . count($items) . " real_gram kaydı senkronize edildi.";
+
+        } catch (\Exception $e) {
+            Log::error('RealGrams Pull Exception: ' . $e->getMessage());
+            return "Hata: Bağlantı sorunu. " . $e->getMessage();
+        }
+    }
+
     private function getLastSyncDate($type)
     {
         $file = $this->lastSyncFile . '.' . $type;
@@ -270,7 +320,7 @@ class SiparisSyncService
             return File::get($file);
         }
         // Varsayılan başlangıç tarihi
-        return '2024-01-01 00:00:00'; 
+        return '2024-01-01 00:00:00';
     }
 
     private function saveLastSyncDate($type, $date)

@@ -196,6 +196,12 @@
                                 <i class="fa-solid fa-calendar-days text-primary w-20 sync-icon"></i> Son 15 Gün (Site)
                             </a>
                         </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item rounded small py-2 d-flex align-items-center gap-2" href="{{ route('real_grams.sync') }}" onclick="handleRealGramSync(event, this)">
+                                <i class="fa-solid fa-weight-scale text-info w-20 sync-icon"></i> Real Gram Senkronize
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
@@ -1022,6 +1028,39 @@ document.addEventListener('DOMContentLoaded', function() {
                         '<p class="small text-muted mb-3">' + error.message + '</p>' +
                         '<button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill" onclick="window.location.reload();">Kapat</button>';
                 }
+            });
+        };
+
+        window.handleRealGramSync = function(event, element) {
+            event.preventDefault();
+            showOverlay('Real Gram Senkronizasyonu', 'morfingen.info\'dan real_grams çekiliyor...');
+
+            fetch(element.href, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                var content = document.getElementById('overlayContent');
+                if (data.success) {
+                    content.innerHTML = '<div class="mb-3 text-success"><i class="fa-solid fa-circle-check" style="font-size:4rem;"></i></div>' +
+                        '<h5 class="fw-bold text-success mb-3">Senkronizasyon Tamamlandı</h5>' +
+                        '<p class="small text-start bg-light p-3 rounded border overflow-auto" style="max-height:200px;color:var(--text-main,#111);">' + data.message + '</p>' +
+                        '<button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill mt-2" onclick="document.getElementById(\'loadingOverlay\').style.display=\'none\'">Kapat</button>';
+                } else {
+                    throw new Error(data.message || 'Bir hata oluştu.');
+                }
+            })
+            .catch(function(error) {
+                console.error('RealGram Sync Error:', error);
+                var content = document.getElementById('overlayContent');
+                content.innerHTML = '<div class="mb-3 text-danger"><i class="fa-solid fa-circle-xmark" style="font-size:4rem;"></i></div>' +
+                    '<h5 class="fw-bold text-danger mb-2">Hata Oluştu</h5>' +
+                    '<p class="small text-start bg-light p-3 rounded border overflow-auto" style="max-height:250px;white-space:pre-wrap;word-break:break-all;color:var(--text-muted,#6b7280);">' + error.message + '</p>' +
+                    '<button type="button" class="btn btn-secondary px-4 rounded-pill" onclick="document.getElementById(\'loadingOverlay\').style.display=\'none\'">Kapat</button>';
             });
         };
 

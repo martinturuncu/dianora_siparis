@@ -168,6 +168,25 @@ class SyncController extends Controller
             'has_more' => $siparisler->count() >= 50
         ]);
     }
+
+    /**
+     * real_grams tablosunun tamamını döndürür (uzak istemci tam refresh yapacak).
+     */
+    public function realGramsDownload(Request $request)
+    {
+        if ($request->header('X-Sync-Token') !== env('SYNC_TOKEN', 'varsayilan_guvensiz_token')) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $items = DB::table('real_grams')
+            ->select('siparis_id', 'real_gram')
+            ->get();
+
+        return response()->json([
+            'items' => $items,
+            'count' => $items->count(),
+        ]);
+    }
 }
 
 
