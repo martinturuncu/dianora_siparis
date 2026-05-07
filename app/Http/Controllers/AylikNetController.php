@@ -134,8 +134,14 @@ class AylikNetController extends Controller
             $birimReklam = $gecerliAyar->reklam ?? 0;
             $birimIscilik = $gecerliAyar->iscilik ?? 0; // İşçilik maliyeti
 
-            // Toplam Miktar * Birim Reklam (iptal ürünleri hariç tut)
-            $toplamMiktar = $sipUrunler->filter(fn($u) => ($u->Durum ?? 0) == 0)->sum('Miktar');
+            // Toplam Miktar * Birim Reklam (iptal ve hediye ürünleri hariç tut)
+            $toplamMiktar = $sipUrunler->filter(function($u) use ($hediyeKodlari) {
+                if (($u->Durum ?? 0) == 1) return false;
+                foreach ($hediyeKodlari as $hk) {
+                    if (strcasecmp($u->StokKodu, $hk) === 0) return false;
+                }
+                return true;
+            })->sum('Miktar');
             $veriler[$key]['reklam_payi'] += ($birimReklam * $toplamMiktar);
             
             // İşçilik Payı (Gider/Gelir gösterimi için)
