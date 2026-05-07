@@ -454,6 +454,37 @@
                                 </div>
                             </div>
                         @endif
+
+                        {{-- REAL GRAM BAR (Varsa, henüz onaylanmamış/reddedilmemişse) --}}
+                        @if(!empty($anaSiparis->RealGramValue) && (float)$anaSiparis->RealGramValue > 0 && empty($anaSiparis->RealGramOnaylandi) && empty($anaSiparis->RealGramReddedildi))
+                            @php
+                                $eskiTahminiGram = 0;
+                                foreach ($urunler as $rgUrun) {
+                                    if (($rgUrun->Durum ?? 0) == 1) continue;
+                                    $eskiTahminiGram += (float)($rgUrun->UrunGram ?? 0) * (int)($rgUrun->Miktar ?? 1);
+                                }
+                            @endphp
+                            <div class="col-12 mt-2 real-gram-row" data-siparis-id="{{ $anaSiparis->SiparisID }}">
+                                <div class="bg-info bg-opacity-10 text-info-emphasis px-3 py-2 rounded-3 small border border-info-subtle d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <i class="fa-solid fa-weight-scale"></i>
+                                        <span class="text-muted">Tahmini:</span>
+                                        <strong>{{ number_format($eskiTahminiGram, 2, ',', '.') }} gr</strong>
+                                        <i class="fa-solid fa-arrow-right text-muted small"></i>
+                                        <span class="text-muted">Gerçek:</span>
+                                        <strong>{{ number_format((float)$anaSiparis->RealGramValue, 2, ',', '.') }} gr</strong>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 fw-semibold" onclick="onaylaRealGram('{{ $anaSiparis->SiparisID }}', this)">
+                                            <i class="fa-solid fa-check me-1"></i>Onayla
+                                        </button>
+                                        <button type="button" class="btn btn-light btn-sm rounded-pill px-3 border fw-semibold" onclick="reddetRealGram('{{ $anaSiparis->SiparisID }}', this)">
+                                            <i class="fa-solid fa-xmark me-1"></i>Ret
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- COLLAPSE BODY (ÜRÜNLER) --}}
@@ -1061,6 +1092,58 @@ document.addEventListener('DOMContentLoaded', function() {
                     '<h5 class="fw-bold text-danger mb-2">Hata Oluştu</h5>' +
                     '<p class="small text-start bg-light p-3 rounded border overflow-auto" style="max-height:250px;white-space:pre-wrap;word-break:break-all;color:var(--text-muted,#6b7280);">' + error.message + '</p>' +
                     '<button type="button" class="btn btn-secondary px-4 rounded-pill" onclick="document.getElementById(\'loadingOverlay\').style.display=\'none\'">Kapat</button>';
+            });
+        };
+
+        function _getCsrfToken() {
+            var input = document.querySelector('input[name="_token"]');
+            return input ? input.value : '';
+        }
+
+        function _realGramRequest(url, btn, onSuccess) {
+            var orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:0.9rem;height:0.9rem;"></span>';
+
+            var fd = new FormData();
+            fd.append('_token', _getCsrfToken());
+
+            return fetch(url, {
+                method: 'POST',
+                body: fd,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    onSuccess(data);
+                } else {
+                    alert('Hata: ' + (data.message || 'Islem basarisiz'));
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                }
+            })
+            .catch(function(err) {
+                alert('Hata: ' + err.message);
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            });
+        }
+
+        window.onaylaRealGram = function(siparisId, btn) {
+            _realGramRequest('/siparisler/' + encodeURIComponent(siparisId) + '/real-gram-onayla', btn, function(data) {
+                // Kar yeniden hesaplandi -> sayfayi yenile
+                window.location.reload();
+            });
+        };
+
+        window.reddetRealGram = function(siparisId, btn) {
+            _realGramRequest('/siparisler/' + encodeURIComponent(siparisId) + '/real-gram-reddet', btn, function(data) {
+                var row = document.querySelector('.real-gram-row[data-siparis-id="' + siparisId + '"]');
+                if (row) row.remove();
             });
         };
 

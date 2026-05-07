@@ -628,6 +628,24 @@ class KarHesapService
             }
         }
 
+        // 5.5 REAL GRAM OVERRIDE: kullanici real_gram'i onayladiysa toplam altin maliyetini ve grami buna gore yeniden yaz
+        $realGramRecord = DB::connection('mysql')->table('real_grams')
+            ->where('siparis_id', (string)$siparisId)
+            ->first();
+        if ((int)($siparis->RealGramOnaylandi ?? 0) === 1 && $realGramRecord && (float)$realGramRecord->real_gram > 0) {
+            $realGramVal = (float)$realGramRecord->real_gram;
+            $goldPurity = isset($siparis->ayar_orani) ? (float)$siparis->ayar_orani : 0.585;
+            $toplamGram = $realGramVal;
+            if ($isEtsy) {
+                $toplamAltinMaliyeti = $realGramVal * $altinUSD * $goldPurity;
+            } else {
+                $toplamAltinMaliyeti = $realGramVal * (float)$ayar->altin_fiyat * $goldPurity;
+                $vergiMatrahi = max(0, $toplamNetSatis - $toplamAltinMaliyeti);
+                $toplamVergi = $vergiMatrahi - ($vergiMatrahi / 1.2);
+            }
+            $gramEksik = false;
+        }
+
         // 6. SİPARİŞ GENEL GİDERLERİ & KARGO & KUTU
         if ($urunler->count() > 0) {
             if ($isEtsy) {

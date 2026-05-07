@@ -13,6 +13,16 @@ class Siparis extends Model
     public $timestamps = false;
     protected $guarded = [];
 
+    protected $casts = [
+        'RealGramOnaylandi' => 'boolean',
+        'RealGramReddedildi' => 'boolean',
+    ];
+
+    public function realGram()
+    {
+        return $this->hasOne(RealGram::class, 'siparis_id', 'SiparisID');
+    }
+
     public function urunler()
     {
         return $this->hasMany(SiparisUrunleri::class, 'SiparisID', 'SiparisID');

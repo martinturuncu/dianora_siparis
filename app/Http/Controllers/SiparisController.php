@@ -60,6 +60,65 @@ class SiparisController extends Controller
     }
 
     /**
+     * Real gram degerini onayla, kari yeniden hesapla.
+     */
+    public function realGramOnayla($id, \App\Services\KarHesapService $karService)
+    {
+        try {
+            $siparis = DB::connection('mysql')->table('Siparisler')->where('SiparisID', (string)$id)->first();
+            if (!$siparis) {
+                return response()->json(['success' => false, 'message' => 'Siparis bulunamadi'], 404);
+            }
+
+            $realGram = DB::connection('mysql')->table('real_grams')->where('siparis_id', (string)$id)->first();
+            if (!$realGram || (float)$realGram->real_gram <= 0) {
+                return response()->json(['success' => false, 'message' => 'Bu siparis icin gecerli real_gram verisi yok'], 422);
+            }
+
+            DB::connection('mysql')->table('Siparisler')->where('SiparisID', (string)$id)->update([
+                'RealGramOnaylandi' => 1,
+                'RealGramReddedildi' => 0,
+            ]);
+
+            $sonuc = $karService->hesaplaSiparis((string)$id);
+            $yeniKar = $sonuc['kar'] ?? null;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Real gram onaylandi, kar yeniden hesaplandi',
+                'yeni_kar' => $yeniKar,
+                'real_gram' => (float)$realGram->real_gram,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('realGramOnayla error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Real gram degerini reddet, mevcut kar bozulmasin.
+     */
+    public function realGramReddet($id)
+    {
+        try {
+            $siparis = DB::connection('mysql')->table('Siparisler')->where('SiparisID', (string)$id)->first();
+            if (!$siparis) {
+                return response()->json(['success' => false, 'message' => 'Siparis bulunamadi'], 404);
+            }
+
+            DB::connection('mysql')->table('Siparisler')->where('SiparisID', (string)$id)->update([
+                'RealGramReddedildi' => 1,
+                'RealGramOnaylandi' => 0,
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'Real gram reddedildi']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('realGramReddet error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * morfingen.info'dan real_grams tablosunu çeker (manuel tetik).
      */
     public function syncRealGrams(\App\Services\SiparisSyncService $syncService)
@@ -187,7 +246,10 @@ class SiparisController extends Controller
                 s.isUSA,
                 s.is_manuel,
                 s.OdemeTipi,
-                
+                s.RealGramOnaylandi,
+                s.RealGramReddedildi,
+                rg.real_gram AS RealGramValue,
+
                 u.UrunAdi,
                 u.StokKodu, 
                 u.Durum AS Durum,
@@ -217,6 +279,7 @@ class SiparisController extends Controller
             
             LEFT JOIN SiparisKarlar sk ON sk.SiparisID = s.SiparisID AND sk.UrunKodu = 'TOPLAM'
             LEFT JOIN Pazaryerleri p ON p.id = s.PazaryeriID
+            LEFT JOIN real_grams rg ON rg.siparis_id = s.SiparisID
 
             LEFT JOIN (
                 SELECT 
