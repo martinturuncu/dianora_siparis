@@ -75,11 +75,28 @@ class SiparisSyncService
         $orderIds = $orders->pluck('SiparisID')->map(function($id) {
             return (string) $id;
         })->unique()->toArray();
-        
-        // Ürün verilerini sadece geçerli sütunları seçerek çek
-        $orderItems = SiparisUrunleri::whereIn('SiparisID', $orderIds)
-            ->select($this->validUrunColumns) // Sadece izin verilen sütunlar
-            ->get();
+
+        // Uzak sunucu eski "Id ile insert" semantigini kullaniyor olabilir; bu yüzden
+        // halihazirda urun kaydi olan siparisleri tekrar gondermeyiz (duplicate olmasin).
+        // Sadece uzakta urunu olmayan siparislerin urunleri push edilir; payloadta Id=0
+        // gonderilir, MySQL auto_increment yeni Id atar (eski ve yeni receiver ile uyumlu).
+        $remoteOrdersWithItems = $this->fetchRemoteOrdersWithItems();
+
+        $ordersToSendItems = array_values(array_diff($orderIds, $remoteOrdersWithItems));
+
+        if (!empty($ordersToSendItems)) {
+            $orderItems = SiparisUrunleri::whereIn('SiparisID', $ordersToSendItems)
+                ->select($this->validUrunColumns)
+                ->get();
+        } else {
+            $orderItems = collect();
+        }
+
+        $payloadItems = $orderItems->map(function ($item) {
+            $arr = $item->toArray();
+            $arr['Id'] = 0; // eski receiver Id=0'i auto_increment'e cevirir, yeni receiver Arr::only ile siler
+            return $arr;
+        })->values()->toArray();
 
         // Fatura bilgilerini çek - SQL Server conversion hatalarını önlemek için string olarak zorla
         $invoiceInfos = \Illuminate\Support\Facades\DB::connection('mysql')->table('FaturaBilgisi')
@@ -88,7 +105,7 @@ class SiparisSyncService
 
         $payload = [
             'orders' => $payloadOrders,
-            'order_items' => $orderItems->toArray(),
+            'order_items' => $payloadItems,
             'invoice_infos' => $invoiceInfos->map(function ($item) {
                 return \Illuminate\Support\Arr::only((array)$item, $this->validFaturaColumns);
             })->toArray()
@@ -311,6 +328,49 @@ class SiparisSyncService
             Log::error('RealGrams Pull Exception: ' . $e->getMessage());
             return "Hata: Bağlantı sorunu. " . $e->getMessage();
         }
+    }
+
+    /**
+     * Uzak sunucudan son 30 gunun urun-iceren SiparisID listesini cekerek
+     * push sirasinda hangi siparislerin yeniden gonderilmemesi gerektigini belirler.
+     * Hata olursa bos dizi doner (push devam eder, en kotu ihtimalle eski davranis).
+     */
+    private function fetchRemoteOrdersWithItems(): array
+    {
+        $cutoff = now()->subDays(30)->format('Y-m-d H:i:s');
+        $found = [];
+
+        try {
+            for ($page = 0; $page < 30; $page++) {
+                $resp = Http::timeout(20)->withHeaders([
+                    'X-Sync-Token' => $this->token,
+                    'Accept' => 'application/json',
+                ])->get($this->remoteUrl . '/api/sync/download', [
+                    'last_sync_date' => $cutoff,
+                ]);
+
+                if (!$resp->successful()) {
+                    Log::warning('fetchRemoteOrdersWithItems non-200', ['status' => $resp->status()]);
+                    break;
+                }
+
+                $data = $resp->json();
+                foreach ($data['order_items'] ?? [] as $item) {
+                    $sid = is_array($item) ? ($item['SiparisID'] ?? null) : null;
+                    if ($sid !== null && $sid !== '') {
+                        $found[(string)$sid] = true;
+                    }
+                }
+
+                if (empty($data['has_more'])) break;
+                if (empty($data['latest_date'])) break;
+                $cutoff = $data['latest_date'];
+            }
+        } catch (\Exception $e) {
+            Log::warning('fetchRemoteOrdersWithItems exception: ' . $e->getMessage());
+        }
+
+        return array_keys($found);
     }
 
     private function getLastSyncDate($type)
