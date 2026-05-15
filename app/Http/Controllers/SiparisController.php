@@ -119,7 +119,7 @@ class SiparisController extends Controller
     }
 
     /**
-     * morfingen.info'dan real_grams tablosunu çeker (manuel tetik).
+     * morf.sipsatstudio.com'dan real_grams tablosunu çeker (manuel tetik).
      */
     public function syncRealGrams(\App\Services\SiparisSyncService $syncService)
     {

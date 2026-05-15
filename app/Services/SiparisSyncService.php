@@ -17,8 +17,8 @@ class SiparisSyncService
     public function __construct()
     {
         // Uzak sunucu adresi ve Token .env dosyasından alınmalı
-        // Örn: REMOTE_SYNC_URL=https://www.morfingen.info
-        $this->remoteUrl = rtrim(env('REMOTE_SYNC_URL', 'https://www.morfingen.info'), '/');
+        // Örn: REMOTE_SYNC_URL=https://morf.sipsatstudio.com
+        $this->remoteUrl = rtrim(env('REMOTE_SYNC_URL', 'https://morf.sipsatstudio.com'), '/');
         $this->token = env('SYNC_TOKEN', 'varsayilan_guvensiz_token');
         
         // Son senkronizasyon zamanını saklayacak dosya
@@ -264,7 +264,7 @@ class SiparisSyncService
     }
 
     /**
-     * morfingen.info'dan real_grams tablosunu tamamen çeker (full refresh).
+     * morf.sipsatstudio.com'dan real_grams tablosunu tamamen çeker (full refresh).
      */
     public function pullRealGrams()
     {

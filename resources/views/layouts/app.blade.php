@@ -401,7 +401,7 @@
             
             {{-- 1. SOL: MörfSoft --}}
             <div class="d-none d-md-block text-secondary">
-                Bir MörfSoft projesidir. &nbsp;|&nbsp; Geliştirici: <a href="https://morfingen.info" target="_blank" class="text-secondary text-decoration-underline">MörfSoft</a>
+                Bir MörfSoft projesidir. &nbsp;|&nbsp; Geliştirici: <a href="https://morf.sipsatstudio.com" target="_blank" class="text-secondary text-decoration-underline">MörfSoft</a>
             </div>
 
             {{-- 2. ORTA: Altın ve Çevirici --}}

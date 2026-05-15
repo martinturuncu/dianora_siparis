@@ -263,6 +263,19 @@
                         8 => 'danger',
                         default => 'secondary'
                     };
+
+                    // REAL GRAM banner kontrolü
+                    $realGramShow = !empty($anaSiparis->RealGramValue)
+                        && (float)$anaSiparis->RealGramValue > 0
+                        && empty($anaSiparis->RealGramOnaylandi)
+                        && empty($anaSiparis->RealGramReddedildi);
+                    $eskiTahminiGram = 0;
+                    if ($realGramShow) {
+                        foreach ($urunler as $rgUrun) {
+                            if (($rgUrun->Durum ?? 0) == 1) continue;
+                            $eskiTahminiGram += (float)($rgUrun->UrunGram ?? 0) * (int)($rgUrun->Miktar ?? 1);
+                        }
+                    }
                 @endphp
 
                 <div class="card border-0 shadow-sm rounded-5 mb-1 hover-shadow transition-all group-card">
@@ -270,7 +283,7 @@
                     <div class="card-header bg-white border-0 py-3 px-4 d-flex flex-wrap align-items-center rounded-5">
                         
                         {{-- 1. SOL: Order Info (Geniş alan) --}}
-                        <div class="col-12 col-lg-5 mb-2 mb-lg-0 d-flex align-items-center gap-3">
+                        <div class="col-12 col-lg-{{ $realGramShow ? '4' : '5' }} mb-2 mb-lg-0 d-flex align-items-center gap-3">
                             {{-- LOGO ALANI (PLATFORM ICON) --}}
                             <div class="bg-card border rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm p-2" style="width: 50px; height: 50px;">
                                 @if($badge['image'])
@@ -378,7 +391,7 @@
                         </div>
 
                         {{-- 3. ORTA: Adet --}}
-                        <div class="col-6 col-lg-2 text-center text-secondary small fw-semibold">
+                        <div class="col-6 col-lg-{{ $realGramShow ? '1' : '2' }} text-center text-secondary small fw-semibold">
                             <i class="fa-solid fa-layer-group text-muted opacity-75 me-1"></i> {{ $aktifUrunlerIndex->sum('Miktar') }} Ürün
                         </div>
 
@@ -411,6 +424,24 @@
                         </div>
                     @endif
                         </div>
+
+                        {{-- 4.5 REAL GRAM CHIP (Sadece banner aktifse, butonlardan önce) --}}
+                        @if($realGramShow)
+                            <div class="col-12 col-lg-2 d-flex align-items-center justify-content-center justify-content-lg-end real-gram-row mt-2 mt-lg-0" data-siparis-id="{{ $anaSiparis->SiparisID }}">
+                                <div class="bg-info bg-opacity-10 text-info-emphasis rounded-pill border border-info-subtle d-flex align-items-center gap-1 px-2 py-1" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-weight-scale text-info"></i>
+                                    <span class="text-nowrap fw-semibold">
+                                        {{ number_format($eskiTahminiGram, 2, ',', '.') }} → {{ number_format((float)$anaSiparis->RealGramValue, 2, ',', '.') }}<span class="text-muted ms-1">gr</span>
+                                    </span>
+                                    <button type="button" class="btn btn-success rounded-circle p-0 d-flex align-items-center justify-content-center ms-1" style="width:20px;height:20px;font-size:0.6rem;" onclick="onaylaRealGram('{{ $anaSiparis->SiparisID }}', this)" title="Onayla">
+                                        <i class="fa-solid fa-check"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-light border rounded-circle p-0 d-flex align-items-center justify-content-center" style="width:20px;height:20px;font-size:0.6rem;" onclick="reddetRealGram('{{ $anaSiparis->SiparisID }}', this)" title="Ret">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
 
                         {{-- 5. BUTTONS --}}
                         <div class="col-6 col-lg-1 text-end">
@@ -455,36 +486,6 @@
                             </div>
                         @endif
 
-                        {{-- REAL GRAM BAR (Varsa, henüz onaylanmamış/reddedilmemişse) --}}
-                        @if(!empty($anaSiparis->RealGramValue) && (float)$anaSiparis->RealGramValue > 0 && empty($anaSiparis->RealGramOnaylandi) && empty($anaSiparis->RealGramReddedildi))
-                            @php
-                                $eskiTahminiGram = 0;
-                                foreach ($urunler as $rgUrun) {
-                                    if (($rgUrun->Durum ?? 0) == 1) continue;
-                                    $eskiTahminiGram += (float)($rgUrun->UrunGram ?? 0) * (int)($rgUrun->Miktar ?? 1);
-                                }
-                            @endphp
-                            <div class="col-12 mt-2 real-gram-row" data-siparis-id="{{ $anaSiparis->SiparisID }}">
-                                <div class="bg-info bg-opacity-10 text-info-emphasis px-3 py-2 rounded-3 small border border-info-subtle d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                        <i class="fa-solid fa-weight-scale"></i>
-                                        <span class="text-muted">Tahmini:</span>
-                                        <strong>{{ number_format($eskiTahminiGram, 2, ',', '.') }} gr</strong>
-                                        <i class="fa-solid fa-arrow-right text-muted small"></i>
-                                        <span class="text-muted">Gerçek:</span>
-                                        <strong>{{ number_format((float)$anaSiparis->RealGramValue, 2, ',', '.') }} gr</strong>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1">
-                                        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 fw-semibold" onclick="onaylaRealGram('{{ $anaSiparis->SiparisID }}', this)">
-                                            <i class="fa-solid fa-check me-1"></i>Onayla
-                                        </button>
-                                        <button type="button" class="btn btn-light btn-sm rounded-pill px-3 border fw-semibold" onclick="reddetRealGram('{{ $anaSiparis->SiparisID }}', this)">
-                                            <i class="fa-solid fa-xmark me-1"></i>Ret
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
                     </div>
 
                     {{-- COLLAPSE BODY (ÜRÜNLER) --}}
@@ -1064,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         window.handleRealGramSync = function(event, element) {
             event.preventDefault();
-            showOverlay('Real Gram Senkronizasyonu', 'morfingen.info\'dan real_grams çekiliyor...');
+            showOverlay('Real Gram Senkronizasyonu', 'morf.sipsatstudio.com\'dan real_grams çekiliyor...');
 
             fetch(element.href, {
                 method: 'GET',
