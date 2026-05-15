@@ -62,13 +62,28 @@ class SyncController extends Controller
 
             // SİPARİŞLERİ KAYDET (Upsert)
             $ordersUpserted = 0;
-            $ordersData = $request->input('orders');
-            
-            // TEMİZLİK: Gelen siparişlerin eski ürün ve fatura bilgilerini topluca sil
-            $incomingSiparisIDs = collect($ordersData)->pluck('SiparisID')->toArray();
-            if (!empty($incomingSiparisIDs)) {
-                DB::table('SiparisUrunleri')->whereIn('SiparisID', $incomingSiparisIDs)->delete();
-                DB::table('FaturaBilgisi')->whereIn('SiparisID', $incomingSiparisIDs)->delete();
+            $ordersData   = $request->input('orders');
+            $itemsData    = $request->input('order_items', []);
+            $invoicesData = $request->input('invoice_infos', []);
+
+            // TEMİZLİK: SADECE payload'da gerçekten yeni veri taşıyan SiparisID'lerin
+            // eski kayıtlarını sil. Payload bir siparişin ürün/faturalarını içermiyorsa
+            // uzaktaki mevcut satırlara dokunma (yerel geçici eksik durumu uzakta
+            // veri kaybına dönüşmesin).
+            $siparisIDsWithItems = collect($itemsData)
+                ->pluck('SiparisID')->filter()->unique()->values()->toArray();
+            $siparisIDsWithInvoices = collect($invoicesData)
+                ->pluck('SiparisID')->filter()->unique()->values()->toArray();
+
+            if (!empty($siparisIDsWithItems)) {
+                DB::table('SiparisUrunleri')
+                    ->whereIn('SiparisID', $siparisIDsWithItems)
+                    ->delete();
+            }
+            if (!empty($siparisIDsWithInvoices)) {
+                DB::table('FaturaBilgisi')
+                    ->whereIn('SiparisID', $siparisIDsWithInvoices)
+                    ->delete();
             }
 
             foreach ($ordersData as $orderData) {
@@ -84,7 +99,6 @@ class SyncController extends Controller
 
             // SİPARİŞ ÜRÜNLERİNİ KAYDET
             $itemsUpserted = 0;
-            $itemsData = $request->input('order_items');
 
             foreach ($itemsData as $itemData) {
                 $cleanItemData = \Illuminate\Support\Arr::only($itemData, $this->validUrunColumns);
@@ -98,7 +112,6 @@ class SyncController extends Controller
 
             // FATURA BİLGİLERİNİ KAYDET
             $invoicesUpserted = 0;
-            $invoicesData = $request->input('invoice_infos', []);
 
             foreach ($invoicesData as $invoiceData) {
                 $cleanInvoiceData = \Illuminate\Support\Arr::only($invoiceData, $this->validFaturaColumns);

@@ -225,9 +225,9 @@ class SiparisEntegrasyonController extends Controller
                     }
 
                     // --- ÜRÜNLERİ SENKRONİZE ET --- //
-
-                    // Önce eski ürünleri sil
-                    DB::connection('mysql')->table('SiparisUrunleri')->where('SiparisID', $siparisIdStr)->delete();
+                    // ÖNCE: API'den çek + parse et. Geçerli ürünler geldiyse ANCAK O ZAMAN
+                    // eski ürünleri silip yenilerini yaz. Boş yanıt durumunda mevcut
+                    // ürünlere dokunma (Ticimax çok yeni siparişlerde geç yanıt verebiliyor).
 
                     // Ürünleri API'den Çek
                     $urunlerResponse = $client->SelectSiparisUrun([
@@ -271,6 +271,21 @@ class SiparisEntegrasyonController extends Controller
                     } elseif (!is_array($apiUrunler)) {
                         $apiUrunler = [];
                     }
+
+                    // GUARD: Boş yanıt → mevcut ürünleri KORU (silme, ekleme yapma)
+                    if (count($apiUrunler) === 0) {
+                        Log::warning("Ticimax SelectSiparisUrun boş yanıt döndü, mevcut ürünler korunuyor.", [
+                            'SiparisID' => $siparisIdStr,
+                            'SiparisNo' => $s->SiparisNo ?? null,
+                        ]);
+                        $this->appendProgress("⚠️  Ürünler boş döndü, mevcut ürünler korunuyor: " . ($s->SiparisNo ?? $s->ID));
+                        $sayac++;
+                        $islenenSiparisler[] = $s->SiparisNo ?? $s->ID;
+                        continue;
+                    }
+
+                    // Ürünler geldi → eskileri sil, yenileri yaz
+                    DB::connection('mysql')->table('SiparisUrunleri')->where('SiparisID', $siparisIdStr)->delete();
 
                     foreach ($apiUrunler as $u) {
                         DB::connection('mysql')->table('SiparisUrunleri')->insert([
