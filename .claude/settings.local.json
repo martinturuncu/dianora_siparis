@@ -5,7 +5,8 @@
       "Bash(curl -s -o /dev/null -w \"HTTP: %{http_code}\\\\n\" \"https://www.dianorapiercing.com/Servis/SiparisServis.svc?wsdl\" --max-time 10)",
       "Read(//c/Users/pc/.claude/projects/C--xampp-htdocs-dianora-siparis//**)",
       "Read(//c/Users/pc/.claude//**)",
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "Bash(mysql -h 127.0.0.1 -u root dianorasiparis -e \"DESCRIBE Siparisler;\")"
     ]
   }
 }
